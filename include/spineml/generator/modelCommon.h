@@ -30,32 +30,10 @@ namespace SpineMLGenerator
 }
 
 //----------------------------------------------------------------------------
-// SpineMLGenerator::ParamValues
+// SpineMLGenerator::VarValues
 //----------------------------------------------------------------------------
 namespace SpineMLGenerator
 {
-class ParamValues
-{
-public:
-    ParamValues(const std::map<std::string, Models::VarInit> &varInitialisers, const Models::Base &model)
-        : m_VarInitialisers(varInitialisers), m_Model(model){}
-
-    //----------------------------------------------------------------------------
-    // Public API
-    //----------------------------------------------------------------------------
-    std::vector<double> getValues() const;
-
-private:
-    //----------------------------------------------------------------------------
-    // Members
-    //----------------------------------------------------------------------------
-    const std::map<std::string, Models::VarInit> &m_VarInitialisers;
-    const Models::Base &m_Model;
-};
-
-//------------------------------------------------------------------------
-// VarValues
-//------------------------------------------------------------------------
 template<typename M>
 class VarValues
 {
@@ -83,6 +61,9 @@ public:
                            if(n.name == "_regimeID") {
                                return Models::VarInit(InitVarSnippet::Constant::getInstance(),
                                                          {(double)m_Model.getInitialRegimeID()});
+                           }
+                           else if(n.name == "_delay") {
+                               return Models::VarInit(InitVarSnippet::Uninitialised::getInstance(), {});
                            }
                            else {
                                auto v = m_VarInitialisers.find(n.name);
@@ -207,15 +188,11 @@ void wrapAndReplaceVariableNames(std::string &code, const std::string &variableN
 //!< Search through code for references to named variable and wrap in GeNN's $(XXXX) tags
 void wrapVariableNames(std::string &code, const std::string &variableName);
 
-//!< Based on the set of parameter names which are deemed to be variable,
-//!< build vectors of variables and parameters to be used by GeNN model
-std::tuple<Models::Base::StringVec, Models::Base::VarVec> findModelVariables(
-    const pugi::xml_node &componentClass, const std::set<std::string> &variableParams,
-    bool multipleRegimes);
+//!< Build vector of variables to be used by GeNN model
+Models::Base::VarVec findModelVariables(const pugi::xml_node &componentClass, bool multipleRegimes);
 
-void substituteModelVariables(const Models::Base::StringVec &paramNames,
-                              const Models::Base::VarVec &vars,
-                              const Models::Base::DerivedParamVec &derivedParams,
+void substituteModelVariables(const Models::Base::VarVec &vars,
+                              const Models::Base::DerivedParamNamedVec &derivedParams,
                               const std::vector<std::string*> &codeStrings);
 
 // Read aliases into map

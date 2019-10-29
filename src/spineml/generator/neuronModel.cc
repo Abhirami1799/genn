@@ -317,19 +317,9 @@ SpineMLGenerator::NeuronModel::NeuronModel(const ModelParams::Neuron &params, co
                                                                      &objectHandlerTimeDerivative,
                                                                      regimeEndFunc);
 
-    // Loop through send ports which send an alias
-    auto variableParams = params.getVariableParams();
+    // Loop through send ports which send an alias and add simulation code to calculate send port value
     for(const auto &s : sendPortAliases) {
-        // Add simulation code to calculate send port value and store in state variable
         simCodeStream << s << " = " << aliases[s] << ";" << std::endl;
-
-        // Add this state variable to variable params set
-        variableParams.insert(s);
-    }
-
-    // Add state variables for external input ports
-    for(const auto &p : externalInputPorts) {
-        variableParams.insert(p);
     }
 
     // Store generated code in class
@@ -337,12 +327,22 @@ SpineMLGenerator::NeuronModel::NeuronModel(const ModelParams::Neuron &params, co
     m_ThresholdConditionCode = regimeThresholds.getThresholdCode(multipleRegimes);
 
     // Build the final vectors of parameter names and variables from model
-    tie(m_ParamNames, m_Vars) = findModelVariables(componentClass, variableParams, multipleRegimes);
+    m_Vars = findModelVariables(componentClass, multipleRegimes);
 
+    // Add state variables for external input ports
+    for(const auto &p : externalInputPorts) {
+        m_Vars.emplace_back(p, "scalar", VarAccess::READ_ONLY);
+    }
+
+    // Add state variables for send port aliases
+    for(const auto &s : sendPortAliases) {
+        m_Vars.emplace_back(s, "scalar", VarAccess::READ_WRITE);
+    }
+    
     // Add any derived parameters required for time-derivative
-    objectHandlerTimeDerivative.addDerivedParams(m_ParamNames, m_DerivedParams);
+    objectHandlerTimeDerivative.addDerivedParams(m_Vars, m_DerivedParams);
 
     // Correctly wrap references to parameters and variables in code strings
-    substituteModelVariables(m_ParamNames, m_Vars, m_DerivedParams,
+    substituteModelVariables(m_Vars, m_DerivedParams,
                              {&m_SimCode, &m_ThresholdConditionCode});
 }

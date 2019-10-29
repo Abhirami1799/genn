@@ -30,10 +30,10 @@ enum class SynapseMatrixType : unsigned int
     BITMASK_GLOBALG_INDIVIDUAL_PSM      = static_cast<unsigned int>(SynapseMatrixConnectivity::BITMASK) | static_cast<unsigned int>(SynapseMatrixWeight::GLOBAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL_PSM),
     SPARSE_GLOBALG                      = static_cast<unsigned int>(SynapseMatrixConnectivity::SPARSE) | static_cast<unsigned int>(SynapseMatrixWeight::GLOBAL),
     SPARSE_GLOBALG_INDIVIDUAL_PSM       = static_cast<unsigned int>(SynapseMatrixConnectivity::SPARSE) | static_cast<unsigned int>(SynapseMatrixWeight::GLOBAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL_PSM),
-    SPARSE_INDIVIDUALG                  =  static_cast<unsigned int>(SynapseMatrixConnectivity::SPARSE) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL_PSM),
+    SPARSE_INDIVIDUALG                  = static_cast<unsigned int>(SynapseMatrixConnectivity::SPARSE) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL_PSM),
     PROCEDURAL_GLOBALG                  = static_cast<unsigned int>(SynapseMatrixConnectivity::PROCEDURAL) | static_cast<unsigned int>(SynapseMatrixWeight::GLOBAL),
     PROCEDURAL_GLOBALG_INDIVIDUAL_PSM   = static_cast<unsigned int>(SynapseMatrixConnectivity::PROCEDURAL) | static_cast<unsigned int>(SynapseMatrixWeight::GLOBAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL_PSM),
-    PROCEDURAL_INDIVIDUALG              =  static_cast<unsigned int>(SynapseMatrixConnectivity::PROCEDURAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL_PSM),
+    PROCEDURAL_INDIVIDUALG              = static_cast<unsigned int>(SynapseMatrixConnectivity::PROCEDURAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL) | static_cast<unsigned int>(SynapseMatrixWeight::INDIVIDUAL_PSM),
 };
 
 //----------------------------------------------------------------------------
@@ -47,4 +47,22 @@ inline bool operator & (SynapseMatrixType type, SynapseMatrixConnectivity connTy
 inline bool operator & (SynapseMatrixType type, SynapseMatrixWeight weightType)
 {
     return (static_cast<unsigned int>(type) & static_cast<unsigned int>(weightType)) != 0;
+}
+
+inline SynapseMatrixType operator | (SynapseMatrixWeight weightType, SynapseMatrixConnectivity connType)
+{
+    return static_cast<SynapseMatrixType>(static_cast<unsigned int>(weightType) | static_cast<unsigned int>(connType));
+}
+
+//----------------------------------------------------------------------------
+// Helpers
+//----------------------------------------------------------------------------
+inline SynapseMatrixConnectivity getSynapseMatrixConnectivity(SynapseMatrixType type)
+{
+    return static_cast<SynapseMatrixConnectivity>(static_cast<unsigned int>(type) & 0x15);
+}
+
+inline SynapseMatrixWeight getSynapseMatrixWeight(SynapseMatrixType type)
+{
+    return static_cast<SynapseMatrixWeight>(static_cast<unsigned int>(type) >> 5);
 }

@@ -109,18 +109,20 @@ void calcGroupSizes(const ModelSpecInternal &model, std::vector<size_t> (&groupS
             groupSizes[KernelSynapseDynamicsUpdate].push_back(Backend::getNumSynapseDynamicsThreads(s.second));
         }
 
-        // If synapse group has individual weights and needs device initialisation
-        if((s.second.getMatrixType() & SynapseMatrixWeight::INDIVIDUAL) && s.second.isWUVarInitRequired()) {
-            const size_t numSrcNeurons = s.second.getSrcNeuronGroup()->getNumNeurons();
-            const size_t numTrgNeurons = s.second.getTrgNeuronGroup()->getNumNeurons();
-            if(s.second.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
-                groupSizes[KernelInitializeSparse].push_back(numSrcNeurons);
-            }
-            else {
-                groupSizes[KernelInitialize].push_back(numSrcNeurons * numTrgNeurons);
-            }
+        // If synapse group has dense connectivity and requires initialisation of weights, add dense initialisation
+        const size_t numSrcNeurons = s.second.getSrcNeuronGroup()->getNumNeurons();
+        const size_t numTrgNeurons = s.second.getTrgNeuronGroup()->getNumNeurons();
+        if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::DENSE && s.second.isWUVarInitRequired()) {
+            groupSizes[KernelInitialize].push_back(numTrgNeurons);
         }
-        
+        // Otherwise, if synapse group has sparse connectivity and either requires initialisation of weights
+        // or generation of extra data structures for learning, add sparse initialisation
+        else if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE
+            && (s.second.isWUVarInitRequired() || !s.second.getWUModel()->getLearnPostCode().empty() || !s.second.getWUModel()->getSynapseDynamicsCode().empty()))
+        {
+            groupSizes[KernelInitializeSparse].push_back(numSrcNeurons);
+        }
+
         // If this synapse group requires dendritic delay, it requires a pre-synapse reset
         if(s.second.isDendriticDelayRequired()) {
             numPreSynapseResetGroups++;

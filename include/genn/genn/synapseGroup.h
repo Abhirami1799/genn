@@ -12,6 +12,7 @@
 #include "postsynapticModels.h"
 #include "weightUpdateModels.h"
 #include "synapseMatrixType.h"
+#include "variableImplementation.h"
 #include "variableMode.h"
 
 // Forward declarations
@@ -42,14 +43,23 @@ public:
     /*! This is ignored for simulations on hardware with a single memory space */
     void setWUVarLocation(const std::string &varName, VarLocation loc);
 
+    //! Set variable implentation of per-synapse weight update model state variable
+    void setWUVarImplementation(const std::string &varName, VarImplementation impl);
+
     //! Set location of weight update model presynaptic state variable
     /*! This is ignored for simulations on hardware with a single memory space */
     void setWUPreVarLocation(const std::string &varName, VarLocation loc);
     
+    //! Set variable implentation of per-presynaptic neuron weight update model state variable
+    void setWUPreVarImplementation(const std::string &varName, VarImplementation impl);
+
     //! Set location of weight update model postsynaptic state variable
     /*! This is ignored for simulations on hardware with a single memory space */
     void setWUPostVarLocation(const std::string &varName, VarLocation loc);
     
+    //! Set variable implentation of per-presynaptic neuron weight update model state variable
+    void setWUPostVarImplementation(const std::string &varName, VarImplementation impl);
+
     //! Set location of weight update model extra global parameter
     /*! This is ignored for simulations on hardware with a single memory space
         and only applies to extra global parameters which are pointers. */
@@ -58,6 +68,9 @@ public:
     //! Set location of postsynaptic model state variable
     /*! This is ignored for simulations on hardware with a single memory space */
     void setPSVarLocation(const std::string &varName, VarLocation loc);
+
+    //! Set variable implentation of postsynaptic model state variable
+    void setPSVarImplementation(const std::string &varName, VarImplementation impl);
 
     //! Set location of postsynaptic model extra global parameter
     /*! This is ignored for simulations on hardware with a single memory space
@@ -102,6 +115,9 @@ public:
     //! Sets the number of delay steps used to delay postsynaptic spikes travelling back along dendrites to synapses
     void setBackPropDelaySteps(unsigned int timesteps);
 
+    //! Enables or disables using narrow i.e. less than 32-bit types for sparse matrix indices
+    void setNarrowSparseIndEnabled(bool enabled);
+
     //------------------------------------------------------------------------
     // Public const methods
     //------------------------------------------------------------------------
@@ -114,7 +130,7 @@ public:
     unsigned int getMaxConnections() const{ return m_MaxConnections; }
     unsigned int getMaxSourceConnections() const{ return m_MaxSourceConnections; }
     unsigned int getMaxDendriticDelayTimesteps() const{ return m_MaxDendriticDelayTimesteps; }
-    SynapseMatrixType getMatrixType() const{ return m_MatrixType; }
+    SynapseMatrixConnectivity getMatrixConnectivity() const{ return m_MatrixConnectivity; }
 
     //! Get variable mode used for variables used to combine input from this synapse group
     VarLocation getInSynLocation() const { return m_InSynLocation; }
@@ -135,17 +151,18 @@ public:
 
     const WeightUpdateModels::Base *getWUModel() const{ return m_WUModel; }
 
-    const std::vector<double> &getWUParams() const{ return m_WUParams; }
     const std::vector<Models::VarInit> &getWUVarInitialisers() const{ return m_WUVarInitialisers; }
     const std::vector<Models::VarInit> &getWUPreVarInitialisers() const{ return m_WUPreVarInitialisers; }
     const std::vector<Models::VarInit> &getWUPostVarInitialisers() const{ return m_WUPostVarInitialisers; }
-    const std::vector<double> getWUConstInitVals() const;
+
+    const std::vector<VarImplementation> &getWUVarImplementation() const{ return m_WUVarImplementation; }
+    const std::vector<VarImplementation> &getWUPreVarImplementation() const{ return m_WUPreVarImplementation; }
+    const std::vector<VarImplementation> &getWUPostVarImplementation() const{ return m_WUPostVarImplementation; }
 
     const PostsynapticModels::Base *getPSModel() const{ return m_PSModel; }
 
-    const std::vector<double> &getPSParams() const{ return m_PSParams; }
     const std::vector<Models::VarInit> &getPSVarInitialisers() const{ return m_PSVarInitialisers; }
-    const std::vector<double> getPSConstInitVals() const;
+    const std::vector<VarImplementation> &getPSVarImplementation() const{ return m_PSVarImplementation; }
 
     const InitSparseConnectivitySnippet::Init &getConnectivityInitialiser() const{ return m_ConnectivityInitialiser; }
 
@@ -169,6 +186,24 @@ public:
     //! Get location of weight update model postsynaptic state variable by index
     VarLocation getWUPostVarLocation(size_t index) const{ return m_WUPostVarLocation.at(index); }
 
+    //! Get implementation of weight update model per-synapse state variable by name
+    VarImplementation getWUVarImplementation(const std::string &var) const;
+
+    //! Get implementation of weight update model per-synapse state variable by index
+    VarImplementation getWUVarImplementation(size_t index) const{ return m_WUVarImplementation.at(index); }
+
+    //! Get implementation of weight update model presynaptic state variable by name
+    VarImplementation getWUPreVarImplementation(const std::string &var) const;
+
+    //! Get implementation of weight update model presynaptic state variable by index
+    VarImplementation getWUPreVarImplementation(size_t index) const{ return m_WUPreVarImplementation.at(index); }
+
+    //! Get implementation of weight update model postsynaptic state variable by name
+    VarImplementation getWUPostVarImplementation(const std::string &var) const;
+
+    //! Get implementation of weight update model postsynaptic state variable by index
+    VarImplementation getWUPostVarImplementation(size_t index) const{ return m_WUPostVarImplementation.at(index); }
+
     //! Get location of weight update model extra global parameter by name
     /*! This is only used by extra global parameters which are pointers*/
     VarLocation getWUExtraGlobalParamLocation(const std::string &paramName) const;
@@ -182,6 +217,13 @@ public:
 
     //! Get location of postsynaptic model state variable
     VarLocation getPSVarLocation(size_t index) const{ return m_PSVarLocation.at(index); }
+
+    //! Get implementation of postsynaptic model per-synapse state variable by name
+    VarImplementation getPSVarImplementation(const std::string &var) const;
+
+    //! Get implementation of postsynaptic model per-synapse state variable by index
+    VarImplementation getPSVarImplementation(size_t index) const{ return m_PSVarImplementation.at(index); }
+
 
     //! Get location of postsynaptic model extra global parameter by name
     /*! This is only used by extra global parameters which are pointers*/
@@ -223,7 +265,17 @@ protected:
                  const PostsynapticModels::Base *ps, const std::vector<double> &psParams, const std::vector<Models::VarInit> &psVarInitialisers,
                  NeuronGroupInternal *srcNeuronGroup, NeuronGroupInternal *trgNeuronGroup,
                  const InitSparseConnectivitySnippet::Init &connectivityInitialiser,
-                 VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation, VarLocation defaultSparseConnectivityLocation);
+                 VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation,
+                 VarLocation defaultSparseConnectivityLocation, bool defaultNarrowSparseIndEnabled);
+
+    SynapseGroup(const std::string name, SynapseMatrixConnectivity matrixConnectivity, unsigned int delaySteps,
+                 const WeightUpdateModels::Base *wu, const std::vector<Models::VarInit> &wuVarInitialisers, const std::vector<Models::VarInit> &wuPreVarInitialisers, const std::vector<Models::VarInit> &wuPostVarInitialisers,
+                 const PostsynapticModels::Base *ps, const std::vector<Models::VarInit> &psVarInitialisers,
+                 NeuronGroupInternal *srcNeuronGroup, NeuronGroupInternal *trgNeuronGroup,
+                 const InitSparseConnectivitySnippet::Init &connectivityInitialiser,
+                 VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation,
+                 VarLocation defaultSparseConnectivityLocation, bool defaultNarrowSparseIndEnabled);
+
 
     //------------------------------------------------------------------------
     // Protected methods
@@ -266,7 +318,12 @@ protected:
 
     std::string getDendriticDelayOffset(const std::string &devPrefix, const std::string &offset = "") const;
 
+    //! Get the type to use for sparse connectivity indices for synapse group
+    std::string getSparseIndType() const;
+
 private:
+    void setDefaultMaxConnections();
+
     //------------------------------------------------------------------------
     // Members
     //------------------------------------------------------------------------
@@ -295,7 +352,7 @@ private:
     unsigned int m_MaxDendriticDelayTimesteps;
     
     //! Connectivity type of synapses
-    const SynapseMatrixType m_MatrixType;
+    const SynapseMatrixConnectivity m_MatrixConnectivity;
 
     //! Pointer to presynaptic neuron group
     NeuronGroupInternal * const m_SrcNeuronGroup;
@@ -307,6 +364,9 @@ private:
     /*! This is required when the pre-synaptic neuron population's outgoing synapse groups require different event threshold */
     bool m_EventThresholdReTestRequired;
 
+    //! Should narrow i.e. less than 32-bit types be used for sparse matrix indices
+    bool m_NarrowSparseIndEnabled;
+
     //! Variable mode used for variables used to combine input from this synapse group
     VarLocation m_InSynLocation;
 
@@ -316,32 +376,38 @@ private:
     //! Weight update model type
     const WeightUpdateModels::Base *m_WUModel;
 
-    //! Parameters of weight update model
-    const std::vector<double> m_WUParams;
-
     //! Derived parameters for weight update model
     std::vector<double> m_WUDerivedParams;
 
     //! Initialisers for weight update model per-synapse variables
     std::vector<Models::VarInit> m_WUVarInitialisers;
 
+    //! How should per-synapse variables be implemented
+    std::vector<VarImplementation> m_WUVarImplementation;
+
     //! Initialisers for weight update model per-presynaptic neuron variables
     std::vector<Models::VarInit> m_WUPreVarInitialisers;
 
-    //! Initialisers for weight update model post-presynaptic neuron variables
+    //! How should per-presynaptic neuron variables be implemented
+    std::vector<VarImplementation> m_WUPreVarImplementation;
+
+    //! Initialisers for weight update model per-presynaptic neuron variables
     std::vector<Models::VarInit> m_WUPostVarInitialisers;
     
+    //! How should per-presynaptic neuron variables be implemented
+    std::vector<VarImplementation> m_WUPostVarImplementation;
+
     //! Post synapse update model type
     const PostsynapticModels::Base *m_PSModel;
-
-    //! Parameters of post synapse model
-    const std::vector<double> m_PSParams;
 
     //! Derived parameters for post synapse model
     std::vector<double> m_PSDerivedParams;
 
     //! Initialisers for post synapse model variables
     std::vector<Models::VarInit> m_PSVarInitialisers;
+
+     //! How should post synapse model variables be implemented
+    std::vector<VarImplementation> m_PSVarImplementation;
 
     //! Location of individual per-synapse state variables
     std::vector<VarLocation> m_WUVarLocation;

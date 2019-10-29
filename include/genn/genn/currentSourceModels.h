@@ -51,6 +51,23 @@ class DC : public Base
 };
 
 //----------------------------------------------------------------------------
+// CurrentSourceModels::DCAuto
+//----------------------------------------------------------------------------
+//! DC source
+/*! It has a single parameter:
+
+    - \c amp    - amplitude of the current [nA]
+*/
+class DCAuto : public Base
+{
+    DECLARE_MODEL(DCAuto, 0, 1);
+
+    SET_INJECTION_CODE("$(injectCurrent, $(amp));\n");
+
+    SET_VARS({{"amp", "scalar", VarAccess::READ_ONLY}});
+};
+
+//----------------------------------------------------------------------------
 // CurrentSourceModels::GaussianNoise
 //----------------------------------------------------------------------------
 //! Noisy current source with noise drawn from normal distribution
@@ -65,5 +82,23 @@ class GaussianNoise : public Base
     SET_INJECTION_CODE("$(injectCurrent, $(mean) + $(gennrand_normal) * $(sd));\n");
 
     SET_PARAM_NAMES({"mean", "sd"} );
+};
+
+//----------------------------------------------------------------------------
+// CurrentSourceModels::GaussianNoiseAuto
+//----------------------------------------------------------------------------
+//! Noisy current source with noise drawn from normal distribution
+/*! It has 2 parameters:
+    - \c mean   - mean of the normal distribution [nA]
+    - \c sd     - standard deviation of the normal distribution [nA]
+*/
+class GaussianNoiseAuto : public Base
+{
+    DECLARE_MODEL(GaussianNoiseAuto, 0, 2);
+
+    SET_INJECTION_CODE("$(injectCurrent, $(mean) + $(gennrand_normal) * $(sd));\n");
+
+    SET_VARS({{"mean",  "scalar",   VarAccess::READ_ONLY},
+              {"sd",    "scalar",   VarAccess::READ_ONLY}});
 };
 } // CurrentSourceModels

@@ -14,38 +14,6 @@
 #include "objectHandler.h"
 
 //----------------------------------------------------------------------------
-// SpineMLGenerator::ParamValues
-//----------------------------------------------------------------------------
-std::vector<double> SpineMLGenerator::ParamValues::getValues() const
-{
-    // Get parameter names from model
-    auto modelParamNames = m_Model.getParamNames();
-
-    // Reserve vector of values to match it
-    std::vector<double> paramValues;
-    paramValues.reserve(modelParamNames.size());
-
-    // Populate this vector with either values from map or 0s
-    std::transform(modelParamNames.begin(), modelParamNames.end(),
-                   std::back_inserter(paramValues),
-                   [this](const std::string &n)
-                   {
-                       auto v = m_VarInitialisers.find(n);
-                       if(v == m_VarInitialisers.end()) {
-                           return 0.0;
-                       }
-                       else {
-                           // Check that this parameter actually has a constant value
-                           assert(dynamic_cast<const InitVarSnippet::Constant*>(v->second.getSnippet()) != nullptr);
-
-                           // Return the first parameter (the value)
-                           return v->second.getParams()[0];
-                       }
-                   });
-    return paramValues;
-}
-
-//----------------------------------------------------------------------------
 // SpineMLGenerator::CodeStream
 //----------------------------------------------------------------------------
 void SpineMLGenerator::CodeStream::onRegimeEnd(bool multipleRegimes, unsigned int currentRegimeID)
@@ -196,58 +164,35 @@ void SpineMLGenerator::wrapVariableNames(std::string &code, const std::string &v
     wrapAndReplaceVariableNames(code, variableName, variableName);
 }
 //----------------------------------------------------------------------------
-std::tuple<Models::Base::StringVec, Models::Base::VarVec> SpineMLGenerator::findModelVariables(
-    const pugi::xml_node &componentClass, const std::set<std::string> &variableParams, bool multipleRegimes)
+Models::Base::VarVec SpineMLGenerator::findModelVariables(const pugi::xml_node &componentClass, bool multipleRegimes)
 {
     // Starting with those the model needs to vary, create a set of genn variables
-    std::set<std::string> gennVariables(variableParams);
+    Models::Base::VarVec gennVariables;
 
     // Add model state variables to this
     auto dynamics = componentClass.child("Dynamics");
     std::transform(dynamics.children("StateVariable").begin(), dynamics.children("StateVariable").end(),
-                   std::inserter(gennVariables, gennVariables.end()),
-                   [](const pugi::xml_node &n){ return n.attribute("name").value(); });
+                   std::back_inserter(gennVariables),
+                   [](const pugi::xml_node &n){ return Models::Base::Var{n.attribute("name").value(), "scalar", VarAccess::READ_WRITE}; });
 
-    // Loop through model parameters
-    Models::Base::StringVec paramNames;
+    // Loop through model parameters and add as read-only variables
     for(auto param : componentClass.children("Parameter")) {
-        // If parameter hasn't been declared variable by model, add it to vector of parameter names
-        std::string paramName = param.attribute("name").value();
-        if(gennVariables.find(paramName) == gennVariables.end()) {
-            paramNames.push_back(paramName);
-        }
+        gennVariables.emplace_back(param.attribute("name").value(), "scalar", VarAccess::READ_ONLY);
     }
-
-    // Add all GeNN variables
-    Models::Base::VarVec vars;
-    std::transform(gennVariables.begin(), gennVariables.end(), std::back_inserter(vars),
-                   [](const std::string &vname){ return Models::Base::Var{vname, "scalar"}; });
 
     // If model has multiple regimes, add unsigned int regime ID to values
     if(multipleRegimes) {
-        vars.push_back({"_regimeID", "unsigned int"});
+        gennVariables.emplace_back("_regimeID", "unsigned int", VarAccess::READ_WRITE);
     }
 
-    // Return parameter names and variables
-    return std::make_tuple(paramNames, vars);
+    // Return variables
+    return gennVariables;
 }
 //----------------------------------------------------------------------------
-void SpineMLGenerator::substituteModelVariables(const Models::Base::StringVec &paramNames,
-                                                const Models::Base::VarVec &vars,
-                                                const Models::Base::DerivedParamVec &derivedParams,
+void SpineMLGenerator::substituteModelVariables(const Models::Base::VarVec &vars,
+                                                const Models::Base::DerivedParamNamedVec &derivedParams,
                                                 const std::vector<std::string*> &codeStrings)
 {
-    // Loop through model parameters
-    LOGD << "\t\tParameters:";
-    for(const auto &p : paramNames) {
-        LOGD << "\t\t\t" << p;
-
-        // Wrap variable names so GeNN code generator can find them
-        for(std::string *c : codeStrings) {
-            wrapVariableNames(*c, p);
-        }
-    }
-
     LOGD << "\t\tVariables:";
     for(const auto &v : vars) {
         LOGD << "\t\t\t" << v.name << ":" << v.type;
@@ -322,7 +267,7 @@ bool SpineMLGenerator::expandAliases(std::string &code, const std::map<std::stri
     // Replace all alias names with their code string
     bool aliasesExpanded = false;
     for(const auto &alias : aliases) {
-        aliasesExpanded |= CodeGenerator::regexVarSubstitute(code, alias.first, alias.second);
+        aliasesExpanded |= CodeGenerator::regexVarSubstitute(code, alias.first, "(" + alias.second + ")");
     }
     return aliasesExpanded;
 }

@@ -9,6 +9,7 @@
 // GeNN includes
 #include "currentSourceModels.h"
 #include "gennExport.h"
+#include "variableImplementation.h"
 #include "variableMode.h"
 
 //------------------------------------------------------------------------
@@ -26,6 +27,9 @@ public:
     //! Set location of current source state variable
     void setVarLocation(const std::string &varName, VarLocation loc);
 
+    //! Set variable implentation of current source state variable
+    void setVarImplementation(const std::string &varName, VarImplementation impl);
+
     //! Set location of extra global parameter
     /*! This is ignored for simulations on hardware with a single memory space
         and only applies to extra global parameters which are pointers. */
@@ -39,14 +43,20 @@ public:
     //! Gets the current source model used by this group
     const CurrentSourceModels::Base *getCurrentSourceModel() const{ return m_CurrentSourceModel; }
 
-    const std::vector<double> &getParams() const{ return m_Params; }
     const std::vector<Models::VarInit> &getVarInitialisers() const{ return m_VarInitialisers; }
+    const std::vector<VarImplementation> &getVarImplementation() const{ return m_VarImplementation; }
 
     //! Get variable location for current source model state variable
     VarLocation getVarLocation(const std::string &varName) const;
 
     //! Get variable location for current source model state variable
     VarLocation getVarLocation(size_t index) const{ return m_VarLocation.at(index); }
+
+    //! Get implementation of current source state variable by name
+    VarImplementation getVarImplementation(const std::string &varName) const;
+
+    //! Get implementation of current source state variable by index
+    VarImplementation getVarImplementation(size_t index) const{ return m_VarImplementation.at(index); }
 
     //! Get location of neuron model extra global parameter by name
     /*! This is only used by extra global parameters which are pointers*/
@@ -59,12 +69,11 @@ public:
 protected:
     CurrentSource(const std::string &name, const CurrentSourceModels::Base *currentSourceModel,
                   const std::vector<double> &params, const std::vector<Models::VarInit> &varInitialisers,
-                  VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation)
-    :   m_Name(name), m_CurrentSourceModel(currentSourceModel), m_Params(params), m_VarInitialisers(varInitialisers),
-        m_VarLocation(varInitialisers.size(), defaultVarLocation),
-        m_ExtraGlobalParamLocation(currentSourceModel->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation)
-    {
-    }
+                  VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation);
+
+    CurrentSource(const std::string &name, const CurrentSourceModels::Base *currentSourceModel,
+                  const std::vector<Models::VarInit> &varInitialisers,
+                  VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation);
 
     //------------------------------------------------------------------------
     // Protected methods
@@ -89,12 +98,14 @@ private:
     std::string m_Name;
 
     const CurrentSourceModels::Base *m_CurrentSourceModel;
-    std::vector<double> m_Params;
     std::vector<double> m_DerivedParams;
     std::vector<Models::VarInit> m_VarInitialisers;
 
     //! Location of individual state variables
     std::vector<VarLocation> m_VarLocation;
+
+    //! How should variables be implemented
+    std::vector<VarImplementation> m_VarImplementation;
 
     //! Location of extra global parameters
     std::vector<VarLocation> m_ExtraGlobalParamLocation;

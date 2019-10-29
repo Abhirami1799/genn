@@ -3,6 +3,9 @@
 // Standard C++ includes
 #include <algorithm>
 
+// PLOG includes
+#include <plog/Log.h>
+
 namespace
 {
 //--------------------------------------------------------------------------
@@ -63,6 +66,97 @@ bool isInitRNGRequired(const std::vector<Models::VarInit> &varInitialisers)
                        {
                            return isRNGRequired(varInit.getSnippet()->getCode());
                        });
+}
+//--------------------------------------------------------------------------
+void initialiseLegacyImplementation(const std::vector<double> &params, const std::vector<Models::VarInit> &initialisers,
+                                    std::vector<Models::VarInit> &combinedInitialisers, std::vector<VarImplementation> &implementation,
+                                    VarImplementation defaultVarImplementation)
+{
+    // Reserve combined initialisers and implementations to be large enough for COMBINED vars
+    combinedInitialisers.reserve(params.size() + initialisers.size());
+    implementation.reserve(params.size() + initialisers.size());
+
+    // Transform parameter values into constant var initialisers
+    std::transform(params.cbegin(), params.cend(), std::back_inserter(combinedInitialisers),
+                   [](double v){ return Models::VarInit(v); });
+
+    // Copy variable initialisers after
+    combinedInitialisers.insert(combinedInitialisers.end(), initialisers.cbegin(), initialisers.cend());
+
+    // Implement all parameters as GLOBAL
+    implementation.insert(implementation.end(), params.size(), VarImplementation::GLOBAL);
+
+    // Implement all variables using default implementation
+    implementation.insert(implementation.end(), initialisers.size(), defaultVarImplementation);
+}
+//--------------------------------------------------------------------------
+void autoDetermineImplementation(const std::vector<Models::VarInit> &initialisers, const Models::Base::VarVec &vars,
+                                 std::vector<VarImplementation> &implementations)
+{
+    // Assert that all sizes match
+    assert(initialisers.size() == vars.size());
+
+    // Reserve implementations arra
+    implementations.reserve(initialisers.size());
+
+    // Implement varaibles that are read only and constant as GLOBAL and others as individual
+    std::transform(initialisers.cbegin(), initialisers.cend(), vars.cbegin(), std::back_inserter(implementations),
+                   [](const Models::VarInit &varInit, const Models::Base::Var &var)
+                   {
+                       if(var.access == VarAccess::READ_ONLY && varInit.isConstant()) {
+                           LOGD << "Defaulting variable '" << var.name << "' to GLOBAL implementation";
+                           return VarImplementation::GLOBAL;
+                       }
+                       else {
+                           LOGD << "Defaulting variable '" << var.name << "' to INDIVIDUAL implementation";
+                           return VarImplementation::INDIVIDUAL;
+                       }
+                   });
+}
+//--------------------------------------------------------------------------
+void calcDerivedParamVal(const Models::Base *model, const std::vector<Models::VarInit> &initialisers,
+                         const std::vector<VarImplementation> &implementation, double dt,
+                         std::vector<double> &derivedParamValues)
+{
+    auto paramNames = model->getParamNames();
+    auto derivedParams = model->getDerivedParams();
+    auto derivedParamsNamed = model->getDerivedParamsNamed();
+    auto combinedVars =  model->getCombinedVars();
+
+    // Reserve vector to hold derived parameters
+    derivedParamValues.reserve(derivedParams.size() + derivedParamsNamed.size());
+
+    // If there are any legacy parameter names
+    if(!paramNames.empty()) {
+        // initialiseLegacyImplementation should have added them to beginning of var initialisers
+        std::vector<double> parValues;
+        parValues.reserve(paramNames.size());
+        std::transform(paramNames.cbegin(), paramNames.cend(), initialisers.cbegin(), std::back_inserter(parValues),
+                       [](const std::string&, const Models::VarInit &v){ return v.getConstantValue(); });
+
+        // Loop through derived parameters
+        for(const auto &d : derivedParams) {
+            derivedParamValues.push_back(d.func(parValues, dt));
+        }
+    }
+
+    // Loop through variables and their initializers and build dictionary of the
+    // constant value associated with variables implemented as GLOBAL
+    std::map<std::string, double> varValues;
+    auto var = combinedVars.cbegin();
+    auto varInit = initialisers.cbegin();
+    auto varImpl = implementation.cbegin();
+    for(; var != combinedVars.cend(); var++, varInit++, varImpl++) {
+        if(*varImpl == VarImplementation::GLOBAL) {
+            varValues.emplace(var->name, varInit->getConstantValue());
+        }
+    }
+
+    // Loop through named derived parameters
+    for(const auto &d : derivedParamsNamed) {
+        derivedParamValues.push_back(d.func(varValues, dt));
+    }
+
 }
 //--------------------------------------------------------------------------
 bool isTypePointer(const std::string &type)

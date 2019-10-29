@@ -85,20 +85,21 @@ void SpineMLGenerator::ObjectHandler::TimeDerivative::onObject(const pugi::xml_n
     }
 }
 //------------------------------------------------------------------------
-void SpineMLGenerator::ObjectHandler::TimeDerivative::addDerivedParams(const Models::Base::StringVec &paramNames,
-                                                                       Models::Base::DerivedParamVec &derivedParams) const
+void SpineMLGenerator::ObjectHandler::TimeDerivative::addDerivedParams(const Models::Base::VarVec &vars,
+                                                                       Snippet::Base::DerivedParamNamedVec &derivedParams) const
 {
     // If a closed form tau parameter exists
     if(!m_ClosedFormTauParamName.empty()) {
-        // If tau parameter exists
-        const size_t tauParamIndex = std::distance(
-            paramNames.cbegin(), std::find(paramNames.cbegin(), paramNames.cend(), m_ClosedFormTauParamName));
-        if(tauParamIndex < paramNames.size()) {
+        // If tau var exists
+        auto tauVar = std::find_if(vars.cbegin(), vars.cend(),
+                                   [this](const Models::Base::Var &var){ return var.name == m_ClosedFormTauParamName; });
+        if(tauVar != vars.cend()) {
             // Add a derived parameter to calculate e ^ (-dt / tau)
+            std::string tau = m_ClosedFormTauParamName;
             derivedParams.push_back({"_expDecay" + m_ClosedFormTauParamName,
-                                     [tauParamIndex](const std::vector<double> &params, double dt)
+                                     [tau](const std::map<std::string, double> &vars, double dt)
                                      {
-                                         return std::exp(-dt / params[tauParamIndex]);
+                                         return std::exp(-dt / vars.at(tau));
                                      }});
         }
         // Otherwise, give an error

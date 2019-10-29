@@ -11,6 +11,10 @@
 // Standard C includes
 #include <cassert>
 
+// GeNN includes
+#include "models.h"
+#include "variableImplementation.h"
+
 // GeNN code generator includes
 #include "codeGenUtils.h"
 
@@ -49,32 +53,50 @@ public:
         }
     }
 
-    void addParamNameSubstitution(const std::vector<std::string> &paramNames, const std::string &sourceSuffix = "",
-                                  const std::string &destPrefix = "", const std::string &destSuffix = "")
+    void addVarSubstitution(const Models::Base::VarVec &variables, const std::vector<Models::VarInit> &initialisers, const std::vector<VarImplementation> &implementation,
+                            const std::string &sourceSuffix = "", const std::string &destPrefix = "", const std::string &destSuffix = "")
     {
-        for(const auto &p : paramNames) {
-            addVarSubstitution(p + sourceSuffix,
-                               destPrefix + p + destSuffix);
+        if(variables.size() != initialisers.size()) {
+            throw std::runtime_error("Number of variables does not match number of initialisers");
         }
-    }
-
-    template<typename T>
-    void addVarValueSubstitution(const std::vector<T> &variables, const std::vector<double> &values,
-                                 const std::string &sourceSuffix = "")
-    {
-        if(variables.size() != values.size()) {
-            throw std::runtime_error("Number of variables does not match number of values");
+        if(variables.size() != implementation.size()) {
+            throw std::runtime_error("Number of variables does not match number of implementations");
         }
 
         auto var = variables.cbegin();
-        auto val = values.cbegin();
-        for (;var != variables.cend() && val != values.cend(); var++, val++) {
-            std::stringstream stream;
-            writePreciseString(stream, *val);
-            addVarSubstitution(var->name + sourceSuffix,
-                               stream.str());
+        auto varInit = initialisers.cbegin();
+        auto varImpl = implementation.cbegin();
+        for (;var != variables.cend(); var++, varInit++, varImpl++) {
+            if(*varImpl == VarImplementation::GLOBAL) {
+                addVarSubstitution(var->name + sourceSuffix, varInit->getConstantValue());
+            }
+            else {
+                addVarSubstitution(var->name + sourceSuffix, destPrefix + var->name + destSuffix);
+            }
+
         }
     }
+
+    void addGlobalVarSubstitution(const Models::Base::VarVec &variables, const std::vector<Models::VarInit> &initialisers, const std::vector<VarImplementation> &implementation,
+                                  const std::string &sourceSuffix = "")
+    {
+        if(variables.size() != initialisers.size()) {
+            throw std::runtime_error("Number of variables does not match number of initialisers");
+        }
+        if(variables.size() != implementation.size()) {
+            throw std::runtime_error("Number of variables does not match number of implementations");
+        }
+
+        auto var = variables.cbegin();
+        auto varInit = initialisers.cbegin();
+        auto varImpl = implementation.cbegin();
+        for (;var != variables.cend(); var++, varInit++, varImpl++) {
+            if(*varImpl == VarImplementation::GLOBAL) {
+                addVarSubstitution(var->name + sourceSuffix, varInit->getConstantValue());
+            }
+        }
+    }
+
 
     void addParamValueSubstitution(const std::vector<std::string> &paramNames, const std::vector<double> &values,
                                    const std::string &sourceSuffix = "")
@@ -86,20 +108,24 @@ public:
         auto param = paramNames.cbegin();
         auto val = values.cbegin();
         for (;param != paramNames.cend() && val != values.cend(); param++, val++) {
-            std::stringstream stream;
-            writePreciseString(stream, *val);
-            addVarSubstitution(*param + sourceSuffix,
-                               stream.str());
+            addVarSubstitution(*param + sourceSuffix, *val);
         }
 
     }
 
-    void addVarSubstitution(const std::string &source, const std::string &destionation, bool allowOverride = false)
+    void addVarSubstitution(const std::string &source, const std::string &destination, bool allowOverride = false)
     {
-        auto res = m_VarSubstitutions.emplace(source, destionation);
+        auto res = m_VarSubstitutions.emplace(source, destination);
         if(!allowOverride && !res.second) {
             throw std::runtime_error("'" + source + "' already has a variable substitution");
         }
+    }
+
+    void addVarSubstitution(const std::string &source, double value, bool allowOverride = false)
+    {
+        std::stringstream stream;
+        writePreciseString(stream, value);
+        addVarSubstitution(source, "(" + stream.str() + ")", allowOverride);
     }
 
     void addFuncSubstitution(const std::string &source, unsigned int numArguments, const std::string &funcTemplate, bool allowOverride = false)

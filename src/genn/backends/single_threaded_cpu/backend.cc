@@ -180,11 +180,11 @@ void Backend::genSynapseUpdate(CodeStream &os, const ModelSpecInternal &model,
                     {
                         // If this synapse group has sparse connectivity, loop through length of this row
                         CodeStream::Scope b(os);
-                        if(s.second.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+                        if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                             os << "for(unsigned int s = 0; s < rowLength" << s.first << "[i]; s++)";
                         }
                         // Otherwise, if it's dense, loop through each postsynaptic neuron
-                        else if(s.second.getMatrixType() & SynapseMatrixConnectivity::DENSE) {
+                        else if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::DENSE) {
                             os << "for (unsigned int j = 0; j < " <<  s.second.getTrgNeuronGroup()->getNumNeurons() << "; j++)";
                         }
                         else {
@@ -194,7 +194,7 @@ void Backend::genSynapseUpdate(CodeStream &os, const ModelSpecInternal &model,
                             CodeStream::Scope b(os);
 
                             Substitutions synSubs(&funcSubs);
-                            if(s.second.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+                            if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                                 // Calculate index of synapse and use it to look up postsynaptic index
                                 os << "const unsigned int n = (i * " << s.second.getMaxConnections() <<  ") + s;" << std::endl;
                                 os << "const unsigned int j = ind" << s.first << "[n];" << std::endl;
@@ -294,7 +294,7 @@ void Backend::genSynapseUpdate(CodeStream &os, const ModelSpecInternal &model,
                         os << "const unsigned int spike = glbSpk" << s.second.getTrgNeuronGroup()->getName() << "[" << offsetTrueSpkPost << "j];" << std::endl;
 
                         // Loop through column of presynaptic neurons
-                        if (s.second.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+                        if (s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                             os << "const unsigned int npre = colLength" << s.first << "[spike];" << std::endl;
                             os << "for (unsigned int i = 0; i < npre; i++)";
                         }
@@ -305,7 +305,7 @@ void Backend::genSynapseUpdate(CodeStream &os, const ModelSpecInternal &model,
                             CodeStream::Scope b(os);
 
                             Substitutions synSubs(&funcSubs);
-                            if(s.second.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+                            if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                                 os << "const unsigned int colMajorIndex = (spike * " << s.second.getMaxSourceConnections() << ") + i;" << std::endl;
                                 os << "const unsigned int rowMajorIndex = remap" << s.first << "[colMajorIndex];" << std::endl;
                                 synSubs.addVarSubstitution("id_pre", "(rowMajorIndex / " + std::to_string(s.second.getMaxConnections()) + ")");
@@ -396,7 +396,7 @@ void Backend::genInit(CodeStream &os, const ModelSpecInternal &model,
         os << "// ------------------------------------------------------------------------" << std::endl;
         os << "// Synapse groups with dense connectivity" << std::endl;
         for(const auto &s : model.getLocalSynapseGroups()) {
-            if((s.second.getMatrixType() & SynapseMatrixConnectivity::DENSE) && (s.second.getMatrixType() & SynapseMatrixWeight::INDIVIDUAL)) {
+            if((s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::DENSE) && s.second.isWUVarInitRequired()) {
                 os << "// synapse group " << s.first << std::endl;
                 CodeStream::Scope b(os);
 
@@ -415,7 +415,7 @@ void Backend::genInit(CodeStream &os, const ModelSpecInternal &model,
                 const size_t numTrgNeurons = s.second.getTrgNeuronGroup()->getNumNeurons();
 
                 // If matrix connectivity is ragged
-                if(s.second.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+                if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                     const std::string rowLength = "rowLength" + s.first;
                     const std::string ind = "ind" + s.first;
 
@@ -441,7 +441,7 @@ void Backend::genInit(CodeStream &os, const ModelSpecInternal &model,
 
                 }
                 // Otherwise, if matrix connectivity is a bitmask
-                else if(s.second.getMatrixType() & SynapseMatrixConnectivity::BITMASK) {
+                else if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK) {
                     // Zero memory before setting sparse bits
                     os << "memset(gp" << s.first << ", 0, " << (numSrcNeurons * numTrgNeurons) / 32 + 1 << " * sizeof(uint32_t));" << std::endl;
 
@@ -489,7 +489,7 @@ void Backend::genInit(CodeStream &os, const ModelSpecInternal &model,
         for(const auto &s : model.getLocalSynapseGroups()) {
             // If synapse group has sparse connectivity and either has variables that require initialising
             // or has postsynaptic learning, meaning that reverse lookup structures need building
-            if ((s.second.getMatrixType() & SynapseMatrixConnectivity::SPARSE)
+            if ((s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE)
                 && (s.second.isWUVarInitRequired() || !s.second.getWUModel()->getLearnPostCode().empty()))
             {
                 CodeStream::Scope b(os);
@@ -660,7 +660,7 @@ void Backend::genSynapseVariableRowInit(CodeStream &os, VarLocation, const Synap
                                         const Substitutions &kernelSubs, Handler handler) const
 {
     // **TODO** loops like this should be generated like CUDA threads
-    if(sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+    if(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
         os << "for (unsigned j = 0; j < rowLength" << sg.getName() << "[" << kernelSubs["id_pre"] << "]; j++)";
     }
     else {
@@ -670,7 +670,7 @@ void Backend::genSynapseVariableRowInit(CodeStream &os, VarLocation, const Synap
         CodeStream::Scope b(os);
 
         Substitutions varSubs(&kernelSubs);
-        if(sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+        if(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
             varSubs.addVarSubstitution("id_syn", "(" + kernelSubs["id_pre"] + " * " + std::to_string(sg.getMaxConnections()) + ") + j");
             varSubs.addVarSubstitution("id_post", "ind" + sg.getName() + "[(" + kernelSubs["id_pre"] + " * " + std::to_string(sg.getMaxConnections()) + ") + j]");
         }
@@ -687,6 +687,13 @@ void Backend::genVariablePush(CodeStream&, const std::string&, const std::string
 }
 //--------------------------------------------------------------------------
 void Backend::genVariablePull(CodeStream&, const std::string&, const std::string&, VarLocation, size_t) const
+{
+}
+//--------------------------------------------------------------------------
+void Backend::genCurrentVariablePush(CodeStream &, const NeuronGroupInternal &, const std::string &, const std::string &, VarLocation) const
+{
+}
+void Backend::genCurrentVariablePull(CodeStream &, const NeuronGroupInternal &, const std::string &, const std::string &, VarLocation) const
 {
 }
 //--------------------------------------------------------------------------
@@ -867,7 +874,7 @@ void Backend::genPresynapticUpdate(CodeStream &os, const SynapseGroupInternal &s
             os << CodeStream::OB(10);
         }
 
-        if (sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+        if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
             os << "const unsigned int npost = rowLength" << sg.getName() << "[ipre];" << std::endl;
             os << "for (unsigned int j = 0; j < npost; j++)";
         }
@@ -877,13 +884,13 @@ void Backend::genPresynapticUpdate(CodeStream &os, const SynapseGroupInternal &s
         }
         {
             CodeStream::Scope b(os);
-            if(sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+            if(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                 // **TODO** seperate stride from max connection
                 os << "const unsigned int synAddress = (ipre * " << sg.getMaxConnections() << ") + j;" << std::endl;
                 os << "const unsigned int ipost = ind" << sg.getName() << "[synAddress];" << std::endl;
             }
             else {
-                if (sg.getMatrixType() & SynapseMatrixConnectivity::BITMASK) {
+                if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK) {
                     os << "const uint64_t gid = (ipre * " << sg.getTrgNeuronGroup()->getNumNeurons() << "ull + ipost);" << std::endl;
                     os << "if (B(gp" << sg.getName() << "[gid / 32], gid & 31))" << CodeStream::OB(20);
                 }
@@ -905,7 +912,7 @@ void Backend::genPresynapticUpdate(CodeStream &os, const SynapseGroupInternal &s
             }
             wumSimHandler(os, sg, synSubs);
 
-            if (sg.getMatrixType() & SynapseMatrixConnectivity::BITMASK) {
+            if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK) {
                 os << CodeStream::CB(20);
             }
         }

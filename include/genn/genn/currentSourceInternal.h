@@ -16,6 +16,13 @@ public:
     {
     }
 
+    CurrentSourceInternal(const std::string &name, const CurrentSourceModels::Base *currentSourceModel,
+                          const std::vector<Models::VarInit> &varInitialisers,
+                          VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation)
+    :   CurrentSource(name, currentSourceModel, varInitialisers, defaultExtraGlobalParamLocation, defaultVarLocation)
+    {
+    }
+
     using CurrentSource::initDerivedParams;
     using CurrentSource::getDerivedParams;
     using CurrentSource::isSimRNGRequired;

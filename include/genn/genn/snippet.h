@@ -3,6 +3,7 @@
 // Standard C++ includes
 #include <algorithm>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,7 @@ public:                                                 \
 
 #define SET_PARAM_NAMES(...) virtual StringVec getParamNames() const override{ return __VA_ARGS__; }
 #define SET_DERIVED_PARAMS(...) virtual DerivedParamVec getDerivedParams() const override{ return __VA_ARGS__; }
+#define SET_DERIVED_PARAMS_NAMED(...) virtual DerivedParamNamedVec getDerivedParamsNamed() const override{ return __VA_ARGS__; }
 
 //----------------------------------------------------------------------------
 // Snippet::ValueBase
@@ -141,6 +143,12 @@ public:
         std::function<double(const std::vector<double> &, double)> func;
     };
 
+    struct DerivedParamNamed
+    {
+        std::string name;
+        std::function<double(const std::map<std::string, double> &, double)> func;
+    };
+
 
     //----------------------------------------------------------------------------
     // Typedefines
@@ -149,6 +157,7 @@ public:
     typedef std::vector<EGP> EGPVec;
     typedef std::vector<ParamVal> ParamValVec;
     typedef std::vector<DerivedParam> DerivedParamVec;
+    typedef std::vector<DerivedParamNamed> DerivedParamNamedVec;
 
     //----------------------------------------------------------------------------
     // Declared virtuals
@@ -160,6 +169,31 @@ public:
     //! Calculate their value from a vector of model parameter values
     virtual DerivedParamVec getDerivedParams() const{ return {}; }
 
+    //! Gets names of derived model parameters and the function objects to call to
+    //! Calculate their value from a map of global model variable names to their value
+    virtual DerivedParamNamedVec getDerivedParamsNamed() const{ return {}; }
+
+    //------------------------------------------------------------------------
+    // Public API
+    //------------------------------------------------------------------------
+    //! For backward compatibility, combines names of both sorts of derived parameter into single vector
+    StringVec getCombinedDerivedParamNames() const
+    {
+        const auto derivedParams = getDerivedParams();
+        const auto derivedParamsNamed = getDerivedParamsNamed();
+
+        // Reserve vector to hold all names
+        StringVec names;
+        names.reserve(derivedParams.size() + derivedParamsNamed.size());
+
+
+        std::transform(derivedParams.cbegin(), derivedParams.cend(), std::back_inserter(names),
+                       [](const DerivedParam &d){ return d.name; });
+        std::transform(derivedParamsNamed.cbegin(), derivedParamsNamed.cend(), std::back_inserter(names),
+                       [](const DerivedParamNamed &d){ return d.name; });
+
+        return names;
+    }
 
 protected:
     //------------------------------------------------------------------------

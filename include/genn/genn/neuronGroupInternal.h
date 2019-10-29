@@ -16,6 +16,14 @@ public:
                     defaultVarLocation, defaultExtraGlobalParamLocation, hostID)
     {
     }
+
+    NeuronGroupInternal(const std::string &name, int numNeurons, const NeuronModels::Base *neuronModel,
+                        const std::vector<Models::VarInit> &varInitialisers,
+                        VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation, int hostID)
+    :   NeuronGroup(name, numNeurons, neuronModel, varInitialisers,
+                    defaultVarLocation, defaultExtraGlobalParamLocation, hostID)
+    {
+    }
     
     using NeuronGroup::checkNumDelaySlots;
     using NeuronGroup::updatePreVarQueues;

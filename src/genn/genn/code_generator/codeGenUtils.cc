@@ -166,14 +166,22 @@ void neuronSubstitutionsInSynapticCode(
     const auto *neuronModel = ng->getNeuronModel();
     substitutions.addVarSubstitution("sT" + sourceSuffix,
                                      "(" + delayOffset + varPrefix + devPrefix+ "sT" + ng->getName() + "[" + offset + idx + "]" + varSuffix + ")");
-    for(const auto &v : neuronModel->getVars()) {
-        const std::string varIdx = ng->isVarQueueRequired(v.name) ? offset + idx : idx;
 
-        substitutions.addVarSubstitution(v.name + sourceSuffix,
-                                         varPrefix + devPrefix + v.name + ng->getName() + "[" + varIdx + "]" + varSuffix);
+    auto variables = neuronModel->getCombinedVars();
+    auto var = variables.cbegin();
+    auto varInit = ng->getVarInitialisers().cbegin();
+    auto varImpl = ng->getVarImplementation().cbegin();
+    for (;var != variables.cend(); var++, varInit++, varImpl++) {
+        if(*varImpl == VarImplementation::GLOBAL) {
+            substitutions.addVarSubstitution(var->name + sourceSuffix, varInit->getConstantValue());
+        }
+        else {
+            const std::string varIdx = ng->isVarQueueRequired(var->name) ? offset + idx : idx;
+            substitutions.addVarSubstitution(var->name + sourceSuffix,
+                                             varPrefix + devPrefix + var->name + ng->getName() + "[" + varIdx + "]" + varSuffix);
+        }
     }
-    substitutions.addParamValueSubstitution(neuronModel->getParamNames(), ng->getParams(), sourceSuffix);
-    substitutions.addVarValueSubstitution(neuronModel->getDerivedParams(), ng->getDerivedParams(), sourceSuffix);
+    substitutions.addParamValueSubstitution(neuronModel->getCombinedDerivedParamNames(), ng->getDerivedParams(), sourceSuffix);
     substitutions.addVarNameSubstitution(neuronModel->getExtraGlobalParams(), sourceSuffix, "", ng->getName());
 }
 

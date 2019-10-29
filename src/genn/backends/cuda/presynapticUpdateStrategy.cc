@@ -30,7 +30,7 @@ size_t PreSpan::getNumThreads(const SynapseGroupInternal &sg) const
 bool PreSpan::isCompatible(const SynapseGroupInternal &sg) const
 {
     // Presynaptic parallelism can be used when synapse groups request it and they have sparse connectivity
-    return (sg.getSpanType() == SynapseGroup::SpanType::PRESYNAPTIC) && (sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE);
+    return (sg.getSpanType() == SynapseGroup::SpanType::PRESYNAPTIC) && (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE);
 }
 //----------------------------------------------------------------------------
 bool PreSpan::shouldAccumulateInRegister(const SynapseGroupInternal &, const Backend &) const
@@ -168,7 +168,7 @@ void PreSpan::genCode(CodeStream &os, const ModelSpecInternal &model, const Syna
 //----------------------------------------------------------------------------
 size_t PostSpan::getNumThreads(const SynapseGroupInternal &sg) const
 {
-    if (sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+    if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
         return sg.getMaxConnections();
     }
     else {
@@ -186,8 +186,8 @@ bool PostSpan::shouldAccumulateInRegister(const SynapseGroupInternal &sg, const 
 {
     // We should accumulate each postsynaptic neuron's input in a register if matrix is dense or bitfield
     // (where each thread represents an individual neuron)
-    return ((sg.getMatrixType() & SynapseMatrixConnectivity::DENSE)
-            || (sg.getMatrixType() & SynapseMatrixConnectivity::BITMASK));
+    return ((sg.getMatrixConnectivity() == SynapseMatrixConnectivity::DENSE)
+            || (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK));
 }
 //----------------------------------------------------------------------------
 bool PostSpan::shouldAccumulateInSharedMemory(const SynapseGroupInternal &sg, const Backend &backend) const
@@ -199,7 +199,7 @@ bool PostSpan::shouldAccumulateInSharedMemory(const SynapseGroupInternal &sg, co
     // Otherwise, we should accumulate each postsynaptic neuron's input in shared menory if matrix is sparse
     // and the output population is small enough that input to it can be stored in a shared memory array
     else {
-        return ((sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE)
+        return ((sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE)
                 && sg.getTrgNeuronGroup()->getNumNeurons() <= backend.getKernelBlockSize(KernelPresynapticUpdate));
     }
 }
@@ -235,7 +235,7 @@ void PostSpan::genCode(CodeStream &os, const ModelSpecInternal &model, const Syn
             const std::string queueOffset = sg.getSrcNeuronGroup()->isDelayRequired() ? "preReadDelayOffset + " : "";
             os << "const unsigned int spk = dd_glbSpk" << eventSuffix << sg.getSrcNeuronGroup()->getName() << "[" << queueOffset << "(r * " << backend.getKernelBlockSize(KernelPresynapticUpdate) << ") + threadIdx.x];" << std::endl;
             os << "shSpk" << eventSuffix << "[threadIdx.x] = spk;" << std::endl;
-            if(sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+            if(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                 os << "shRowLength[threadIdx.x] = dd_rowLength" << sg.getName() << "[spk];" << std::endl;
             }
         }
@@ -249,7 +249,7 @@ void PostSpan::genCode(CodeStream &os, const ModelSpecInternal &model, const Syn
             os << "if (" << popSubs["id"] << " < " << sg.getMaxConnections() << ")";
             {
                 CodeStream::Scope b(os);
-                if (sg.getMatrixType() & SynapseMatrixConnectivity::BITMASK) {
+                if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK) {
                     const size_t maxSynapses = (size_t)sg.getTrgNeuronGroup()->getNumNeurons() * (size_t)sg.getSrcNeuronGroup()->getNumNeurons();
                     if((maxSynapses & 0xFFFFFFFF00000000ULL) != 0) {
                         os << "const uint64_t gid = (shSpk" << eventSuffix << "[j] * " << sg.getTrgNeuronGroup()->getNumNeurons() << "ull + " << popSubs["id"] << ");" << std::endl;
@@ -264,7 +264,7 @@ void PostSpan::genCode(CodeStream &os, const ModelSpecInternal &model, const Syn
                 }
                 if (!trueSpike && sg.isEventThresholdReTestRequired()) {
                     os << "if(";
-                    if (sg.getMatrixType() & SynapseMatrixConnectivity::BITMASK) {
+                    if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK) {
                         // Note: we will just access global mem. For compute >= 1.2 simultaneous access to same global mem in the (half-)warp will be coalesced - no worries
                         os << "(B(dd_gp" << sg.getName() << "[gid / 32], gid & 31)) && ";
                     }
@@ -279,13 +279,13 @@ void PostSpan::genCode(CodeStream &os, const ModelSpecInternal &model, const Syn
                     os << ")";
                     os << CodeStream::OB(130);
                 }
-                else if (sg.getMatrixType() & SynapseMatrixConnectivity::BITMASK) {
+                else if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK) {
                     os << "if (B(dd_gp" << sg.getName() << "[gid / 32], gid & 31))" << CodeStream::OB(135);
                 }
 
                 Substitutions synSubs(&popSubs);
                 synSubs.addVarSubstitution("id_pre", "shSpk" + eventSuffix + "[j]");
-                if(sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+                if(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                     os << "unsigned int synAddress = shSpk" << eventSuffix << "[j] * " << sg.getMaxConnections() << ";" << std::endl;
                     os << "const unsigned int npost = shRowLength[j];" << std::endl;
 
@@ -308,7 +308,7 @@ void PostSpan::genCode(CodeStream &os, const ModelSpecInternal &model, const Syn
                 }
                 // Otherwise
                 else {
-                    if (sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) { // SPARSE
+                    if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) { // SPARSE
                         // **THINK** this is only correct if there are no multapses i.e. there is only one synapse between any pair of pre and postsynaptic neurons
                         if (shouldAccumulateInSharedMemory(sg, backend)) {
                             synSubs.addFuncSubstitution("addToInSyn", 1, "shLg[" + synSubs["id_post"] + "] += $(0)");
@@ -324,14 +324,14 @@ void PostSpan::genCode(CodeStream &os, const ModelSpecInternal &model, const Syn
 
                 wumSimHandler(os, sg, synSubs);
 
-                if (sg.getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+                if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
                     os << CodeStream::CB(140); // end if (id < npost)
                 }
 
                 if (!trueSpike && sg.isEventThresholdReTestRequired()) {
                     os << CodeStream::CB(130); // end if (eCode)
                 }
-                else if (sg.getMatrixType() & SynapseMatrixConnectivity::BITMASK) {
+                else if (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::BITMASK) {
                     os << CodeStream::CB(135); // end if (B(dd_gp" << sg.getName() << "[gid / 32], gid
                 }
             }

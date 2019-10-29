@@ -42,7 +42,6 @@ public:
     //------------------------------------------------------------------------
     // Typedefines
     //------------------------------------------------------------------------
-    typedef SpineMLGenerator::ParamValues ParamValues;
     typedef SpineMLGenerator::VarValues<WeightUpdateModel> VarValues;
     typedef Models::VarInitContainerBase<0> PreVarValues;
     typedef Models::VarInitContainerBase<0> PostVarValues;
@@ -71,9 +70,8 @@ public:
     virtual std::string getSimCode() const override{ return m_SimCode; }
     virtual std::string getSynapseDynamicsCode() const override{ return m_SynapseDynamicsCode; }
 
-    virtual Models::Base::StringVec getParamNames() const override{ return m_ParamNames; }
     virtual Models::Base::VarVec getVars() const override{ return m_Vars; }
-    virtual Models::Base::DerivedParamVec getDerivedParams() const override{ return m_DerivedParams; }
+    virtual Models::Base::DerivedParamNamedVec getDerivedParamsNamed() const override{ return m_DerivedParams; }
 
     //------------------------------------------------------------------------
     // Constants
@@ -91,9 +89,8 @@ private:
     std::string m_SendPortSpikeImpulse;
     std::string m_SendPortAnalogue;
 
-    Models::Base::StringVec m_ParamNames;
     Models::Base::VarVec m_Vars;
-    Models::Base::DerivedParamVec m_DerivedParams;
+    Models::Base::DerivedParamNamedVec m_DerivedParams;
 
     unsigned int m_InitialRegimeID;
 };

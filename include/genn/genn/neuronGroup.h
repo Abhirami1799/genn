@@ -9,6 +9,7 @@
 // GeNN includes
 #include "gennExport.h"
 #include "neuronModels.h"
+#include "variableImplementation.h"
 #include "variableMode.h"
 
 // Forward declarations
@@ -43,6 +44,9 @@ public:
     /*! This is ignored for simulations on hardware with a single memory space */
     void setVarLocation(const std::string &varName, VarLocation loc);
 
+    //! Set variable implentation of neuron model state variable
+    void setVarImplementation(const std::string &varName, VarImplementation impl);
+
     //! Set location of neuron model extra global parameter
     /*! This is ignored for simulations on hardware with a single memory space
         and only applies to extra global parameters which are pointers. */
@@ -59,8 +63,8 @@ public:
     //! Gets the neuron model used by this group
     const NeuronModels::Base *getNeuronModel() const{ return m_NeuronModel; }
 
-    const std::vector<double> &getParams() const{ return m_Params; }
     const std::vector<Models::VarInit> &getVarInitialisers() const{ return m_VarInitialisers; }
+    const std::vector<VarImplementation> &getVarImplementation() const{ return m_VarImplementation; }
 
     int getClusterHostID() const{ return m_HostID; }
 
@@ -87,6 +91,12 @@ public:
     //! Get location of neuron model state variable by index
     VarLocation getVarLocation(size_t index) const{ return m_VarLocation.at(index); }
 
+    //! Get implementation of neuron model state variable by name
+    VarImplementation getVarImplementation(const std::string &varName) const;
+
+    //! Get implementation of neuron model state variable by index
+    VarImplementation getVarImplementation(size_t index) const{ return m_VarImplementation.at(index); }
+
     //! Get location of neuron model extra global parameter by name
     /*! This is only used by extra global parameters which are pointers*/
     VarLocation getExtraGlobalParamLocation(const std::string &paramName) const;
@@ -108,13 +118,11 @@ public:
 protected:
     NeuronGroup(const std::string &name, int numNeurons, const NeuronModels::Base *neuronModel,
                 const std::vector<double> &params, const std::vector<Models::VarInit> &varInitialisers,
-                VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation, int hostID) :
-        m_Name(name), m_NumNeurons(numNeurons), m_NeuronModel(neuronModel), m_Params(params), m_VarInitialisers(varInitialisers),
-        m_NumDelaySlots(1), m_VarQueueRequired(varInitialisers.size(), false), m_SpikeLocation(defaultVarLocation), m_SpikeEventLocation(defaultVarLocation),
-        m_SpikeTimeLocation(defaultVarLocation), m_VarLocation(varInitialisers.size(), defaultVarLocation),
-        m_ExtraGlobalParamLocation(neuronModel->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation), m_HostID(hostID)
-    {
-    }
+                VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation, int hostID);
+
+     NeuronGroup(const std::string &name, int numNeurons, const NeuronModels::Base *neuronModel,
+                const std::vector<Models::VarInit> &varInitialisers,
+                VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation, int hostID);
 
     //------------------------------------------------------------------------
     // Protected methods
@@ -185,7 +193,6 @@ private:
     const unsigned int m_NumNeurons;
 
     const NeuronModels::Base *m_NeuronModel;
-    const std::vector<double> m_Params;
     std::vector<double> m_DerivedParams;
     std::vector<Models::VarInit> m_VarInitialisers;
     std::vector<SynapseGroupInternal*> m_InSyn;
@@ -209,6 +216,9 @@ private:
 
     //! Location of individual state variables
     std::vector<VarLocation> m_VarLocation;
+
+    //! How should variables be implemented
+    std::vector<VarImplementation> m_VarImplementation;
 
     //! Location of extra global parameters
     std::vector<VarLocation> m_ExtraGlobalParamLocation;

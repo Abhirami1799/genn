@@ -256,10 +256,10 @@ SpineMLGenerator::PostsynapticModel::PostsynapticModel(const ModelParams::Postsy
     m_DecayCode = decayCodeStream.str();
 
     // Build the final vectors of parameter names and variables from model
-    tie(m_ParamNames, m_Vars) = findModelVariables(componentClass, params.getVariableParams(), multipleRegimes);
+    m_Vars = findModelVariables(componentClass, multipleRegimes);
 
     // Add any derived parameters required for time-derivative
-    objectHandlerTimeDerivative.addDerivedParams(m_ParamNames, m_DerivedParams);
+    objectHandlerTimeDerivative.addDerivedParams(m_Vars, m_DerivedParams);
 
     // Determine what state variable inpulse is applied to
     const std::string &impulseAssignStateVar = objectHandlerImpulse.getImpulseAssignStateVar();
@@ -327,6 +327,6 @@ SpineMLGenerator::PostsynapticModel::PostsynapticModel(const ModelParams::Postsy
     }
 
     // Correctly wrap references to parameters and variables in code strings
-    substituteModelVariables(m_ParamNames, m_Vars, m_DerivedParams,
+    substituteModelVariables(m_Vars, m_DerivedParams,
                              {&m_DecayCode, &m_ApplyInputCode});
 }

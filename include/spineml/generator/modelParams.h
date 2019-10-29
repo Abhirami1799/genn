@@ -45,14 +45,12 @@ public:
 
     Base(const filesystem::path &basePath, const pugi::xml_node &node,
          const std::set<std::string> *externalInputPorts,
-         const std::set<std::string> *overridenPropertyNames,
          std::map<std::string, Models::VarInit> &varInitialisers);
 
     //----------------------------------------------------------------- -----------
     // Public API
     //----------------------------------------------------------------------------
     const std::string &getURL() const{ return m_URL; }
-    const std::set<std::string> &getVariableParams() const{ return m_VariableParams; }
     const std::pair<PortSource, std::string> &getInputPortSrc(const std::string &dstPort) const;
     const std::pair<PortSource, std::string> &getOutputPortTrg(const std::string &srcPort) const;
     bool isInputPortExternal(const std::string &dstPort) const;
@@ -62,8 +60,8 @@ public:
     //----------------------------------------------------------------------------
     bool operator < (const Base &other) const
     {
-        return (std::tie(m_URL, m_VariableParams, m_InputPortSources, m_OutputPortTargets)
-                < std::tie(other.m_URL, other.m_VariableParams, other.m_InputPortSources, other.m_OutputPortTargets));
+        return (std::tie(m_URL, m_InputPortSources, m_OutputPortTargets)
+                < std::tie(other.m_URL, other.m_InputPortSources, other.m_OutputPortTargets));
     }
 
 protected:
@@ -78,7 +76,6 @@ private:
     // Members
     //----------------------------------------------------------------------------
     std::string m_URL;
-    std::set<std::string> m_VariableParams;
 
     // Map of destination port names to their source component and port
     std::map<std::string, std::pair<PortSource, std::string>> m_InputPortSources;
@@ -93,7 +90,6 @@ class Neuron : public Base
 public:
     Neuron(const filesystem::path &basePath, const pugi::xml_node &node,
            const std::set<std::string> *externalInputPorts,
-           const std::set<std::string> *overridenPropertyNames,
            std::map<std::string, Models::VarInit> &varInitialisers);
 };
 
@@ -106,8 +102,31 @@ public:
     WeightUpdate(const filesystem::path &basePath, const pugi::xml_node &node,
                  const std::string &srcPopName, const std::string &trgPopName,
                  const std::set<std::string> *externalInputPorts,
-                 const std::set<std::string> *overridenPropertyNames,
-                 std::map<std::string, Models::VarInit> &varInitialisers);
+                 std::map<std::string, Models::VarInit> &varInitialisers,
+                 unsigned int maxDendriticDelay);
+    //----------------------------------------------------------------- -----------
+    // Public API
+    //----------------------------------------------------------------------------
+    unsigned int getMaxDendriticDelay() const{ return m_MaxDendriticDelay; }
+
+    //----------------------------------------------------------------------------
+    // Operators
+    //----------------------------------------------------------------------------
+    bool operator < (const WeightUpdate &other) const
+    {
+        if(Base::operator < (other)) {
+            return true;
+        }
+        else {
+            return m_MaxDendriticDelay < other.m_MaxDendriticDelay;
+        }
+    }
+
+private:
+    //----------------------------------------------------------------------------
+    // Members
+    //----------------------------------------------------------------------------
+    const unsigned int m_MaxDendriticDelay;
 };
 
 //----------------------------------------------------------------------------
@@ -119,7 +138,6 @@ public:
     Postsynaptic(const filesystem::path &basePath, const pugi::xml_node &node,
                  const std::string &trgPopName,
                  const std::set<std::string> *externalInputPorts,
-                 const std::set<std::string> *overridenPropertyNames,
                  std::map<std::string, Models::VarInit> &varInitialisers);
 };
 }   // namespace ModelParams

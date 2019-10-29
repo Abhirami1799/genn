@@ -9,34 +9,6 @@
 #include "neuronGroupInternal.h"
 #include "gennUtils.h"
 
-//----------------------------------------------------------------------------
-// Anonymous namespace
-//----------------------------------------------------------------------------
-namespace
-{
-std::vector<double> getConstInitVals(const std::vector<Models::VarInit> &varInitialisers)
-{
-    // Reserve initial values to match initialisers
-    std::vector<double> initVals;
-    initVals.reserve(varInitialisers.size());
-
-    // Transform variable initialisers into a vector of doubles
-    std::transform(varInitialisers.cbegin(), varInitialisers.cend(), std::back_inserter(initVals),
-                   [](const Models::VarInit &v)
-                   {
-                       // Check
-                       if(dynamic_cast<const InitVarSnippet::Constant*>(v.getSnippet()) == nullptr) {
-                           throw std::runtime_error("Only 'Constant' variable initialisation snippets can be used to initialise state variables of synapse groups using GLOBALG");
-                       }
-
-                       // Return the first parameter (the value)
-                       return v.getParams()[0];
-                   });
-
-    return initVals;
-}
-}   // Anonymous namespace
-
 // ------------------------------------------------------------------------
 // SynapseGroup
 // ------------------------------------------------------------------------
@@ -45,14 +17,29 @@ void SynapseGroup::setWUVarLocation(const std::string &varName, VarLocation loc)
     m_WUVarLocation[getWUModel()->getVarIndex(varName)] = loc;
 }
 //----------------------------------------------------------------------------
+void SynapseGroup::setWUVarImplementation(const std::string &varName, VarImplementation impl)
+{
+    m_WUVarImplementation[getWUModel()->getVarIndex(varName)] = impl;
+}
+//----------------------------------------------------------------------------
 void SynapseGroup::setWUPreVarLocation(const std::string &varName, VarLocation loc)
 {
     m_WUPreVarLocation[getWUModel()->getPreVarIndex(varName)] = loc;
 }
 //----------------------------------------------------------------------------
+void SynapseGroup::setWUPreVarImplementation(const std::string &varName, VarImplementation impl)
+{
+    m_WUPreVarImplementation[getWUModel()->getPreVarIndex(varName)] = impl;
+}
+//----------------------------------------------------------------------------
 void SynapseGroup::setWUPostVarLocation(const std::string &varName, VarLocation loc)
 {
     m_WUPostVarLocation[getWUModel()->getPostVarIndex(varName)] = loc;
+}
+//----------------------------------------------------------------------------
+void SynapseGroup::setWUPostVarImplementation(const std::string &varName, VarImplementation impl)
+{
+    m_WUPostVarImplementation[getWUModel()->getPostVarIndex(varName)] = impl;
 }
 //----------------------------------------------------------------------------
 void SynapseGroup::setWUExtraGlobalParamLocation(const std::string &paramName, VarLocation loc)
@@ -67,6 +54,11 @@ void SynapseGroup::setWUExtraGlobalParamLocation(const std::string &paramName, V
 void SynapseGroup::setPSVarLocation(const std::string &varName, VarLocation loc)
 {
     m_PSVarLocation[getPSModel()->getVarIndex(varName)] = loc;
+}
+//----------------------------------------------------------------------------
+void SynapseGroup::setPSVarImplementation(const std::string &varName, VarImplementation impl)
+{
+    m_PSVarImplementation[getPSModel()->getVarIndex(varName)] = impl;
 }
 //----------------------------------------------------------------------------
 void SynapseGroup::setPSExtraGlobalParamLocation(const std::string &paramName, VarLocation loc)
@@ -89,7 +81,7 @@ void SynapseGroup::setSparseConnectivityExtraGlobalParamLocation(const std::stri
 //----------------------------------------------------------------------------
 void SynapseGroup::setMaxConnections(unsigned int maxConnections)
 {
-    if (getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+    if(m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE) {
         if(m_ConnectivityInitialiser.getSnippet()->getCalcMaxRowLengthFunc()) {
             throw std::runtime_error("setMaxConnections: Synapse group already has max connections defined by connectivity initialisation snippet.");
         }
@@ -103,7 +95,7 @@ void SynapseGroup::setMaxConnections(unsigned int maxConnections)
 //----------------------------------------------------------------------------
 void SynapseGroup::setMaxSourceConnections(unsigned int maxConnections)
 {
-    if (getMatrixType() & SynapseMatrixConnectivity::SPARSE) {
+    if(m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE) {
         if(m_ConnectivityInitialiser.getSnippet()->getCalcMaxColLengthFunc()) {
             throw std::runtime_error("setMaxSourceConnections: Synapse group already has max source connections defined by connectivity initialisation snippet.");
         }
@@ -123,21 +115,21 @@ void SynapseGroup::setMaxDendriticDelayTimesteps(unsigned int maxDendriticDelayT
 //----------------------------------------------------------------------------
 void SynapseGroup::setSpanType(SpanType spanType)
 {
-    if ((getMatrixType() & SynapseMatrixConnectivity::SPARSE) || (getMatrixType() & SynapseMatrixConnectivity::PROCEDURAL)) {
+    if(m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE || m_MatrixConnectivity == SynapseMatrixConnectivity::PROCEDURAL) {
         m_SpanType = spanType;
     }
     else {
-        throw std::runtime_error("setSpanType: This function is not enabled for dense connectivity type.");
+        throw std::runtime_error("setSpanType: This function can only be used on synapse groups with sparse connectivity.");
     }
 }
 //----------------------------------------------------------------------------
 void SynapseGroup::setNumThreadsPerSpike(unsigned int numThreadsPerSpike)
 {
-    if (m_SpanType == SpanType::PRESYNAPTIC) {
+    if(m_SpanType == SpanType::PRESYNAPTIC) {
         m_NumThreadsPerSpike = numThreadsPerSpike;
     }
     else {
-        throw std::runtime_error("setSpanType: This function is not enabled for dense connectivity type.");
+        throw std::runtime_error("setSpanType: This function can only be used on synapse groups with a presynaptic span type.");
     }
 }
 //----------------------------------------------------------------------------
@@ -146,6 +138,16 @@ void SynapseGroup::setBackPropDelaySteps(unsigned int timesteps)
     m_BackPropDelaySteps = timesteps;
 
     m_TrgNeuronGroup->checkNumDelaySlots(m_BackPropDelaySteps);
+}
+//----------------------------------------------------------------------------
+void SynapseGroup::setNarrowSparseIndEnabled(bool enabled)
+{
+    if (getMatrixConnectivity() == SynapseMatrixConnectivity::SPARSE) {
+        m_NarrowSparseIndEnabled = enabled;
+    }
+    else {
+        throw std::runtime_error("setNarrowSparseIndEnabled: This function can only be used on synapse groups with sparse connectivity.");
+    }
 }
 //----------------------------------------------------------------------------
 int SynapseGroup::getClusterHostID() const
@@ -161,16 +163,6 @@ bool SynapseGroup::isTrueSpikeRequired() const
 bool SynapseGroup::isSpikeEventRequired() const
 {
      return !getWUModel()->getEventCode().empty();
-}
-//----------------------------------------------------------------------------
-const std::vector<double> SynapseGroup::getWUConstInitVals() const
-{
-    return getConstInitVals(m_WUVarInitialisers);
-}
-//----------------------------------------------------------------------------
-const std::vector<double> SynapseGroup::getPSConstInitVals() const
-{
-    return getConstInitVals(m_PSVarInitialisers);
 }
 //----------------------------------------------------------------------------
 bool SynapseGroup::isZeroCopyEnabled() const
@@ -221,6 +213,21 @@ VarLocation SynapseGroup::getWUPostVarLocation(const std::string &var) const
     return m_WUPostVarLocation[getWUModel()->getPostVarIndex(var)];
 }
 //----------------------------------------------------------------------------
+VarImplementation SynapseGroup::getWUVarImplementation(const std::string &var) const
+{
+    return m_WUVarImplementation[getWUModel()->getVarIndex(var)];
+}
+//----------------------------------------------------------------------------
+VarImplementation SynapseGroup::getWUPreVarImplementation(const std::string &var) const
+{
+    return m_WUPreVarImplementation[getWUModel()->getPreVarIndex(var)];
+}
+//----------------------------------------------------------------------------
+VarImplementation SynapseGroup::getWUPostVarImplementation(const std::string &var) const
+{
+    return m_WUPostVarImplementation[getWUModel()->getPostVarIndex(var)];
+}
+//----------------------------------------------------------------------------
 VarLocation SynapseGroup::getWUExtraGlobalParamLocation(const std::string &paramName) const
 {
     return m_WUExtraGlobalParamLocation[getWUModel()->getExtraGlobalParamIndex(paramName)];
@@ -229,6 +236,11 @@ VarLocation SynapseGroup::getWUExtraGlobalParamLocation(const std::string &param
 VarLocation SynapseGroup::getPSVarLocation(const std::string &var) const
 {
     return m_PSVarLocation[getPSModel()->getVarIndex(var)];
+}
+//----------------------------------------------------------------------------
+VarImplementation SynapseGroup::getPSVarImplementation(const std::string &var) const
+{
+    return m_PSVarImplementation[getPSModel()->getVarIndex(var)];
 }
 //----------------------------------------------------------------------------
 VarLocation SynapseGroup::getPSExtraGlobalParamLocation(const std::string &paramName) const
@@ -282,15 +294,17 @@ bool SynapseGroup::isWUInitRNGRequired() const
 //----------------------------------------------------------------------------
 bool SynapseGroup::isWUVarInitRequired() const
 {
-    // If this synapse group has per-synapse state variables,
-    // return true if any of them have initialisation code
-    if (getMatrixType() & SynapseMatrixWeight::INDIVIDUAL) {
-        return std::any_of(m_WUVarInitialisers.cbegin(), m_WUVarInitialisers.cend(),
-                           [](const Models::VarInit &init){ return !init.getSnippet()->getCode().empty(); });
+    // Loop through variable's initialisers and implementation
+    auto varInit = m_WUVarInitialisers.cbegin();
+    auto varImpl = m_WUVarImplementation.cbegin();
+    for(;varInit != m_WUVarInitialisers.cend(); varInit++, varImpl++) {
+        // If variable is individually implemented and has some initialisation code, return true
+        if(*varImpl == VarImplementation::INDIVIDUAL && !varInit->getSnippet()->getCode().empty()) {
+            return true;
+        }
     }
-    else {
-        return false;
-    }
+
+    return false;
 }
 //----------------------------------------------------------------------------
 bool SynapseGroup::isSparseConnectivityInitRequired() const
@@ -305,78 +319,77 @@ SynapseGroup::SynapseGroup(const std::string name, SynapseMatrixType matrixType,
                            const PostsynapticModels::Base *ps, const std::vector<double> &psParams, const std::vector<Models::VarInit> &psVarInitialisers,
                            NeuronGroupInternal *srcNeuronGroup, NeuronGroupInternal *trgNeuronGroup,
                            const InitSparseConnectivitySnippet::Init &connectivityInitialiser,
-                           VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation, VarLocation defaultSparseConnectivityLocation)
-    :   m_Name(name), m_SpanType(SpanType::POSTSYNAPTIC), m_NumThreadsPerSpike(1), m_DelaySteps(delaySteps), m_BackPropDelaySteps(0),
-        m_MaxDendriticDelayTimesteps(1), m_MatrixType(matrixType),  m_SrcNeuronGroup(srcNeuronGroup), m_TrgNeuronGroup(trgNeuronGroup),
-        m_EventThresholdReTestRequired(false),
-        m_InSynLocation(defaultVarLocation),  m_DendriticDelayLocation(defaultVarLocation),
-        m_WUModel(wu), m_WUParams(wuParams), m_WUVarInitialisers(wuVarInitialisers), m_WUPreVarInitialisers(wuPreVarInitialisers), m_WUPostVarInitialisers(wuPostVarInitialisers),
-        m_PSModel(ps), m_PSParams(psParams), m_PSVarInitialisers(psVarInitialisers),
-        m_WUVarLocation(wuVarInitialisers.size(), defaultVarLocation), m_WUPreVarLocation(wuPreVarInitialisers.size(), defaultVarLocation),
-        m_WUPostVarLocation(wuPostVarInitialisers.size(), defaultVarLocation), m_WUExtraGlobalParamLocation(wu->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation),
-        m_PSVarLocation(psVarInitialisers.size(), defaultVarLocation), m_PSExtraGlobalParamLocation(ps->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation),
-        m_ConnectivityInitialiser(connectivityInitialiser), m_SparseConnectivityLocation(defaultSparseConnectivityLocation),
-        m_ConnectivityExtraGlobalParamLocation(connectivityInitialiser.getSnippet()->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation), m_PSModelTargetName(name)
+                           VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation,
+                           VarLocation defaultSparseConnectivityLocation, bool defaultNarrowSparseIndEnabled)
+:   m_Name(name), m_SpanType(SpanType::POSTSYNAPTIC), m_NumThreadsPerSpike(1), m_DelaySteps(delaySteps), m_BackPropDelaySteps(0),
+    m_MaxDendriticDelayTimesteps(1), m_MatrixConnectivity(getSynapseMatrixConnectivity(matrixType)),
+    m_SrcNeuronGroup(srcNeuronGroup), m_TrgNeuronGroup(trgNeuronGroup), m_EventThresholdReTestRequired(false),
+    m_NarrowSparseIndEnabled(defaultNarrowSparseIndEnabled), m_InSynLocation(defaultVarLocation),  m_DendriticDelayLocation(defaultVarLocation),
+    m_WUModel(wu), m_PSModel(ps), m_WUVarLocation(wuParams.size() + wuVarInitialisers.size(), defaultVarLocation),
+    m_WUPreVarLocation(wuPreVarInitialisers.size(), defaultVarLocation), m_WUPostVarLocation(wuPostVarInitialisers.size(), defaultVarLocation),
+    m_WUExtraGlobalParamLocation(wu->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation),
+    m_PSVarLocation(psParams.size() + psVarInitialisers.size(), defaultVarLocation),
+    m_PSExtraGlobalParamLocation(ps->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation),
+    m_ConnectivityInitialiser(connectivityInitialiser), m_SparseConnectivityLocation(defaultSparseConnectivityLocation),
+    m_ConnectivityExtraGlobalParamLocation(connectivityInitialiser.getSnippet()->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation), m_PSModelTargetName(name)
 {
-    // If connectivity is procedural
-    if(m_MatrixType & SynapseMatrixConnectivity::PROCEDURAL) {
-        // If there's no row build code, give an error
-        if(m_ConnectivityInitialiser.getSnippet()->getRowBuildCode().empty()) {
-            throw std::runtime_error("Cannot use procedural connectivity without specifying connectivity initialisation snippet");
-        }
+    // Populate combined weight update model variable initialisers and implementations from legacy parameters and initialisers
+    Utils::initialiseLegacyImplementation(wuParams, wuVarInitialisers, m_WUVarInitialisers, m_WUVarImplementation,
+        (matrixType & SynapseMatrixWeight::INDIVIDUAL) ? VarImplementation::INDIVIDUAL : VarImplementation::GLOBAL);
+    Utils::initialiseLegacyImplementation({}, wuPreVarInitialisers, m_WUPreVarInitialisers, m_WUPreVarImplementation);
+    Utils::initialiseLegacyImplementation({}, wuPostVarInitialisers, m_WUPostVarInitialisers, m_WUPostVarImplementation);
 
-        // If the weight update model has code for postsynaptic-spike triggered updating, give an error
-        if(!m_WUModel->getLearnPostCode().empty()) {
-            throw std::runtime_error("Procedural connectivity cannot be used for synapse groups with postsynaptic spike-triggered learning");
-        }
+    // Populate combined weight update model variable initialisers and implementations from legacy parameters and initialisers
+    // **NOTE** because legacy parameters are accessible everywhere, add them to all three
+    Utils::initialiseLegacyImplementation(psParams, psVarInitialisers, m_PSVarInitialisers, m_PSVarImplementation,
+        (matrixType & SynapseMatrixWeight::INDIVIDUAL_PSM) ? VarImplementation::INDIVIDUAL : VarImplementation::GLOBAL);
+
+    setDefaultMaxConnections();
+}
+//----------------------------------------------------------------------------
+SynapseGroup::SynapseGroup(const std::string name, SynapseMatrixConnectivity matrixConnectivity, unsigned int delaySteps,
+                           const WeightUpdateModels::Base *wu, const std::vector<Models::VarInit> &wuVarInitialisers, const std::vector<Models::VarInit> &wuPreVarInitialisers, const std::vector<Models::VarInit> &wuPostVarInitialisers,
+                           const PostsynapticModels::Base *ps, const std::vector<Models::VarInit> &psVarInitialisers,
+                           NeuronGroupInternal *srcNeuronGroup, NeuronGroupInternal *trgNeuronGroup,
+                           const InitSparseConnectivitySnippet::Init &connectivityInitialiser,
+                           VarLocation defaultVarLocation, VarLocation defaultExtraGlobalParamLocation,
+                           VarLocation defaultSparseConnectivityLocation, bool defaultNarrowSparseIndEnabled)
+:   m_Name(name), m_SpanType(SpanType::POSTSYNAPTIC), m_NumThreadsPerSpike(1), m_DelaySteps(delaySteps), m_BackPropDelaySteps(0),
+    m_MaxDendriticDelayTimesteps(1), m_MatrixConnectivity(matrixConnectivity),  m_SrcNeuronGroup(srcNeuronGroup), m_TrgNeuronGroup(trgNeuronGroup),
+    m_EventThresholdReTestRequired(false), m_NarrowSparseIndEnabled(defaultNarrowSparseIndEnabled), 
+    m_InSynLocation(defaultVarLocation),  m_DendriticDelayLocation(defaultVarLocation),
+    m_WUModel(wu), m_WUVarInitialisers(wuVarInitialisers), m_WUPreVarInitialisers(wuPreVarInitialisers),
+    m_WUPostVarInitialisers(wuPostVarInitialisers), m_PSModel(ps), m_PSVarInitialisers(psVarInitialisers),
+    m_WUVarLocation(wuVarInitialisers.size(), defaultVarLocation), m_WUPreVarLocation(wuPreVarInitialisers.size(), defaultVarLocation),
+    m_WUPostVarLocation(wuPostVarInitialisers.size(), defaultVarLocation), m_WUExtraGlobalParamLocation(wu->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation),
+    m_PSVarLocation(psVarInitialisers.size(), defaultVarLocation), m_PSExtraGlobalParamLocation(ps->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation),
+    m_ConnectivityInitialiser(connectivityInitialiser), m_SparseConnectivityLocation(defaultSparseConnectivityLocation),
+    m_ConnectivityExtraGlobalParamLocation(connectivityInitialiser.getSnippet()->getExtraGlobalParams().size(), defaultExtraGlobalParamLocation), m_PSModelTargetName(name)
+{
+    if(!wu->getParamNames().empty()) {
+        throw std::runtime_error("Populations using weight update models with legacy 'parameters' cannot be added with this functions");
     }
 
-    // If connectivitity initialisation snippet provides a function to calculate row length, call it
-    // **NOTE** only do this for sparse or procedural connectivity as this should not be set for bitmasks
-    auto calcMaxRowLengthFunc = m_ConnectivityInitialiser.getSnippet()->getCalcMaxRowLengthFunc();
-    if(calcMaxRowLengthFunc && ((m_MatrixType & SynapseMatrixConnectivity::SPARSE) || (m_MatrixType & SynapseMatrixConnectivity::PROCEDURAL))) {
-        m_MaxConnections = calcMaxRowLengthFunc(srcNeuronGroup->getNumNeurons(), trgNeuronGroup->getNumNeurons(),
-                                                m_ConnectivityInitialiser.getParams());
-    }
-    // Otherwise, default to the size of the target population
-    else {
-        m_MaxConnections = trgNeuronGroup->getNumNeurons();
+    if(!ps->getParamNames().empty()) {
+        throw std::runtime_error("Populations using postsynaptic models with legacy 'parameters' cannot be added with this functions");
     }
 
-    // If connectivitity initialisation snippet provides a function to calculate row length, call it
-    // **NOTE** only do this for sparse or procedural connectivity as this should not be set for bitmasks
-    auto calcMaxColLengthFunc = m_ConnectivityInitialiser.getSnippet()->getCalcMaxColLengthFunc();
-    if(calcMaxColLengthFunc && ((m_MatrixType & SynapseMatrixConnectivity::SPARSE) || (m_MatrixType & SynapseMatrixConnectivity::PROCEDURAL))) {
-        m_MaxSourceConnections = calcMaxColLengthFunc(srcNeuronGroup->getNumNeurons(), trgNeuronGroup->getNumNeurons(),
-                                                      m_ConnectivityInitialiser.getParams());
-    }
-    // Otherwise, default to the size of the source population
-    else {
-        m_MaxSourceConnections = srcNeuronGroup->getNumNeurons();
-    }
+    // Automatically determine default implementation for weight update model variables
+    Utils::autoDetermineImplementation(m_WUVarInitialisers, wu->getCombinedVars(), m_WUVarImplementation);
+    Utils::autoDetermineImplementation(m_WUPreVarInitialisers, wu->getPreVars(), m_WUPreVarImplementation);
+    Utils::autoDetermineImplementation(m_WUPostVarInitialisers, wu->getPostVars(), m_WUPostVarImplementation);
 
-    // Check that the source neuron group supports the desired number of delay steps
-    srcNeuronGroup->checkNumDelaySlots(delaySteps);
+    // Automatically determine default implementation for postsynaptic model variables
+    Utils::autoDetermineImplementation(m_PSVarInitialisers, ps->getCombinedVars(), m_PSVarImplementation);
+
+    setDefaultMaxConnections();
 }
 //----------------------------------------------------------------------------
 void SynapseGroup::initDerivedParams(double dt)
 {
-    auto wuDerivedParams = getWUModel()->getDerivedParams();
-    auto psDerivedParams = getPSModel()->getDerivedParams();
-
-    // Reserve vector to hold derived parameters
-    m_WUDerivedParams.reserve(wuDerivedParams.size());
-    m_PSDerivedParams.reserve(psDerivedParams.size());
-
-    // Loop through WU derived parameters
-    for(const auto &d : wuDerivedParams) {
-        m_WUDerivedParams.push_back(d.func(m_WUParams, dt));
-    }
-
-    // Loop through PSM derived parameters
-    for(const auto &d : psDerivedParams) {
-        m_PSDerivedParams.push_back(d.func(m_PSParams, dt));
-    }
+    // Calculate derived parameter values
+    Utils::calcDerivedParamVal(getWUModel(), m_WUVarInitialisers, m_WUVarImplementation, dt, m_WUDerivedParams);
+    Utils::calcDerivedParamVal(getPSModel(), m_PSVarInitialisers, m_PSVarImplementation, dt, m_PSDerivedParams);
 
     // Initialise derived parameters for WU variable initialisers
     for(auto &v : m_WUVarInitialisers) {
@@ -436,4 +449,67 @@ std::string SynapseGroup::getDendriticDelayOffset(const std::string &devPrefix, 
     else {
         return "(((" + devPrefix + "denDelayPtr" + getPSModelTargetName() + " + " + offset + ") % " + std::to_string(getMaxDendriticDelayTimesteps()) + ") * " + std::to_string(getTrgNeuronGroup()->getNumNeurons()) + ") + ";
     }
+}
+//----------------------------------------------------------------------------
+std::string SynapseGroup::getSparseIndType() const
+{
+    // If narrow sparse inds are enabled
+    if(m_NarrowSparseIndEnabled) {
+        // If number of target neurons can be represented using a uint8, use this type
+        const unsigned int numTrgNeurons = getTrgNeuronGroup()->getNumNeurons();
+        if(numTrgNeurons <= std::numeric_limits<uint8_t>::max()) {
+            return "uint8_t";
+        }
+        // Otherwise, if they can be represented as a uint16, use this type
+        else if(numTrgNeurons <= std::numeric_limits<uint16_t>::max()) {
+            return "uint16_t";
+        }
+    }
+
+    // Otherwise, use 32-bit int
+    return "uint32_t";
+
+}
+//----------------------------------------------------------------------------
+void SynapseGroup::setDefaultMaxConnections()
+{
+    // If connectivity is procedural
+    if(m_MatrixType == SynapseMatrixConnectivity::PROCEDURAL) {
+        // If there's no row build code, give an error
+        if(m_ConnectivityInitialiser.getSnippet()->getRowBuildCode().empty()) {
+            throw std::runtime_error("Cannot use procedural connectivity without specifying connectivity initialisation snippet");
+        }
+
+        // If the weight update model has code for postsynaptic-spike triggered updating, give an error
+        if(!m_WUModel->getLearnPostCode().empty()) {
+            throw std::runtime_error("Procedural connectivity cannot be used for synapse groups with postsynaptic spike-triggered learning");
+        }
+    }
+
+    // If connectivitity initialisation snippet provides a function to calculate row length, call it
+    // **NOTE** only do this for sparse connectivity as this should not be set for bitmasks
+    auto calcMaxRowLengthFunc = m_ConnectivityInitialiser.getSnippet()->getCalcMaxRowLengthFunc();
+    if(calcMaxRowLengthFunc && (m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE)) {
+        m_MaxConnections = calcMaxRowLengthFunc(getSrcNeuronGroup()->getNumNeurons(), getTrgNeuronGroup()->getNumNeurons(),
+                                                m_ConnectivityInitialiser.getParams());
+    }
+    // Otherwise, default to the size of the target population
+    else {
+        m_MaxConnections = getTrgNeuronGroup()->getNumNeurons();
+    }
+
+    // If connectivitity initialisation snippet provides a function to calculate row length, call it
+    // **NOTE** only do this for sparse connectivity as this should not be set for bitmasks
+    auto calcMaxColLengthFunc = m_ConnectivityInitialiser.getSnippet()->getCalcMaxColLengthFunc();
+    if(calcMaxColLengthFunc && (m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE)) {
+        m_MaxSourceConnections = calcMaxColLengthFunc(getSrcNeuronGroup()->getNumNeurons(), getTrgNeuronGroup()->getNumNeurons(),
+                                                      m_ConnectivityInitialiser.getParams());
+    }
+    // Otherwise, default to the size of the source population
+    else {
+        m_MaxSourceConnections = getSrcNeuronGroup()->getNumNeurons();
+    }
+
+    // Check that the source neuron group supports the desired number of delay steps
+    getSrcNeuronGroup()->checkNumDelaySlots(getDelaySteps());
 }

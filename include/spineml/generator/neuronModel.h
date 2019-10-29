@@ -39,7 +39,6 @@ public:
     //------------------------------------------------------------------------
     // Typedefines
     //------------------------------------------------------------------------
-    typedef SpineMLGenerator::ParamValues ParamValues;
     typedef SpineMLGenerator::VarValues<NeuronModel> VarValues;
 
     //------------------------------------------------------------------------
@@ -86,10 +85,9 @@ public:
     virtual std::string getSimCode() const override{ return m_SimCode; }
     virtual std::string getThresholdConditionCode() const override{ return m_ThresholdConditionCode; }
 
-    virtual Models::Base::StringVec getParamNames() const override{ return m_ParamNames; }
     virtual Models::Base::VarVec getVars() const override{ return m_Vars; }
     virtual Models::Base::ParamValVec getAdditionalInputVars() const override{ return m_AdditionalInputVars; }
-    virtual Models::Base::DerivedParamVec getDerivedParams() const override{ return m_DerivedParams; }
+    virtual Models::Base::DerivedParamNamedVec getDerivedParamsNamed() const override{ return m_DerivedParams; }
 
     // SpineML models never use auto-refractory behaviour
     virtual bool isAutoRefractoryRequired() const override{ return false; }
@@ -113,9 +111,8 @@ private:
 
     // GeNN model data
     Models::Base::ParamValVec m_AdditionalInputVars;
-    Models::Base::StringVec m_ParamNames;
     Models::Base::VarVec m_Vars;
-    Models::Base::DerivedParamVec m_DerivedParams;
+    Models::Base::DerivedParamNamedVec m_DerivedParams;
 
     unsigned int m_InitialRegimeID;
 };

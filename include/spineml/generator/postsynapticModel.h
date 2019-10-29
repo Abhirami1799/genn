@@ -45,7 +45,6 @@ public:
     //------------------------------------------------------------------------
     // Typedefines
     //------------------------------------------------------------------------
-    typedef SpineMLGenerator::ParamValues ParamValues;
     typedef SpineMLGenerator::VarValues<PostsynapticModel> VarValues;
 
     //------------------------------------------------------------------------
@@ -53,9 +52,8 @@ public:
     //------------------------------------------------------------------------
     virtual std::string getDecayCode() const override{ return m_DecayCode; }
     virtual std::string getApplyInputCode() const override{ return m_ApplyInputCode; }
-    virtual Models::Base::StringVec getParamNames() const override{ return m_ParamNames; }
     virtual Models::Base::VarVec getVars() const override{ return m_Vars; }
-    virtual Models::Base::DerivedParamVec getDerivedParams() const override{ return m_DerivedParams; }
+    virtual Models::Base::DerivedParamNamedVec getDerivedParamsNamed() const override{ return m_DerivedParams; }
 
     //------------------------------------------------------------------------
     // Public API
@@ -77,9 +75,8 @@ private:
     std::string m_DecayCode;
     std::string m_ApplyInputCode;
 
-    Models::Base::StringVec m_ParamNames;
     Models::Base::VarVec m_Vars;
-    Models::Base::DerivedParamVec m_DerivedParams;
+    Models::Base::DerivedParamNamedVec m_DerivedParams;
 
     unsigned int m_InitialRegimeID;
 };
