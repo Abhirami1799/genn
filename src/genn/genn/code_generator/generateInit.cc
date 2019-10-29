@@ -370,7 +370,7 @@ void CodeGenerator::generateInit(CodeStream &os, const ModelSpecInternal &model,
                     Substitutions varSubs(popSubs);
                     varSubs.addVarSubstitution("value", backend.getVarPrefix() + vars[k].name + sg.getName() + "[" + varSubs["id_syn"] +  "]");
                     varSubs.addParamValueSubstitution(varInit.getSnippet()->getParamNames(), varInit.getParams());
-                    varSubs.addVarValueSubstitution(varInit.getSnippet()->getDerivedParams(), varInit.getDerivedParams());
+                    varSubs.addParamValueSubstitution(varInit.getSnippet()->getCombinedDerivedParamNames(), varInit.getDerivedParams());
 
                     // Apply substitutions
                     // **NOTE** don't check for unreplaced variables because this code

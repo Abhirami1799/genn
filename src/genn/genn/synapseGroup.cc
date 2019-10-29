@@ -270,7 +270,7 @@ bool SynapseGroup::isDendriticDelayRequired() const
 //----------------------------------------------------------------------------
 bool SynapseGroup::isProceduralConnectivityRNGRequired() const
 {
-    return ((m_MatrixType & SynapseMatrixConnectivity::PROCEDURAL) &&
+    return ((m_MatrixConnectivity == SynapseMatrixConnectivity::PROCEDURAL) &&
             Utils::isRNGRequired(m_ConnectivityInitialiser.getSnippet()->getRowBuildCode()));
 }
 //----------------------------------------------------------------------------
@@ -288,7 +288,7 @@ bool SynapseGroup::isWUInitRNGRequired() const
     }
 
     // Return true if matrix has sparse or bitmask connectivity and an RNG is required to initialise connectivity
-    return (((m_MatrixType & SynapseMatrixConnectivity::SPARSE) || (m_MatrixType & SynapseMatrixConnectivity::BITMASK))
+    return (((m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE) || (m_MatrixConnectivity == SynapseMatrixConnectivity::BITMASK))
             && Utils::isRNGRequired(m_ConnectivityInitialiser.getSnippet()->getRowBuildCode()));
 }
 //----------------------------------------------------------------------------
@@ -310,7 +310,7 @@ bool SynapseGroup::isWUVarInitRequired() const
 bool SynapseGroup::isSparseConnectivityInitRequired() const
 {
     // Return true if the matrix type is sparse or bitmask and there is code to initialise sparse connectivity
-    return (((m_MatrixType & SynapseMatrixConnectivity::SPARSE) || (m_MatrixType & SynapseMatrixConnectivity::BITMASK))
+    return (((m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE) || (m_MatrixConnectivity == SynapseMatrixConnectivity::BITMASK))
             && !getConnectivityInitialiser().getSnippet()->getRowBuildCode().empty());
 }
 //----------------------------------------------------------------------------
@@ -474,7 +474,7 @@ std::string SynapseGroup::getSparseIndType() const
 void SynapseGroup::setDefaultMaxConnections()
 {
     // If connectivity is procedural
-    if(m_MatrixType == SynapseMatrixConnectivity::PROCEDURAL) {
+    if(m_MatrixConnectivity == SynapseMatrixConnectivity::PROCEDURAL) {
         // If there's no row build code, give an error
         if(m_ConnectivityInitialiser.getSnippet()->getRowBuildCode().empty()) {
             throw std::runtime_error("Cannot use procedural connectivity without specifying connectivity initialisation snippet");

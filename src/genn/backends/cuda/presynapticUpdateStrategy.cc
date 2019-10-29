@@ -179,7 +179,7 @@ size_t PostSpan::getNumThreads(const SynapseGroupInternal &sg) const
 bool PostSpan::isCompatible(const SynapseGroupInternal &sg) const
 {
     // Postsynatic parallelism can be used when synapse groups request it
-    return (sg.getSpanType() == SynapseGroup::SpanType::POSTSYNAPTIC) && !(sg.getMatrixType() & SynapseMatrixConnectivity::PROCEDURAL);
+    return (sg.getSpanType() == SynapseGroup::SpanType::POSTSYNAPTIC) && !(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::PROCEDURAL);
 }
 //----------------------------------------------------------------------------
 bool PostSpan::shouldAccumulateInRegister(const SynapseGroupInternal &sg, const Backend &) const
@@ -351,7 +351,7 @@ size_t PreSpanProcedural::getNumThreads(const SynapseGroupInternal &sg) const
 bool PreSpanProcedural::isCompatible(const SynapseGroupInternal &sg) const
 {
     // Presynaptic procedural parallelism can be used when synapse groups have procedural connectivity
-    return (sg.getMatrixType() & SynapseMatrixConnectivity::PROCEDURAL);
+    return (sg.getMatrixConnectivity() == SynapseMatrixConnectivity::PROCEDURAL);
 }
 //----------------------------------------------------------------------------
 bool PreSpanProcedural::shouldAccumulateInRegister(const SynapseGroupInternal &, const Backend &) const

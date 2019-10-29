@@ -93,7 +93,7 @@ bool isSparseInitRequired(const SynapseGroupInternal &sg)
 //-----------------------------------------------------------------------
 bool isProceduralInitRequired(const SynapseGroupInternal &sg)
 {
-    return ((sg.getMatrixType() & SynapseMatrixConnectivity::PROCEDURAL) && sg.isWUVarInitRequired());
+    return ((sg.getMatrixConnectivity() == SynapseMatrixConnectivity::PROCEDURAL) && sg.isWUVarInitRequired());
 }
 //-----------------------------------------------------------------------
 void updateExtraGlobalParams(const std::string &varSuffix, const std::string &codeSuffix, const Snippet::Base::EGPVec &extraGlobalParameters,
@@ -485,7 +485,7 @@ void Backend::genSynapseUpdate(CodeStream &os, const ModelSpecInternal &model,
 
         // If synapse group is connected using procedural connectivity, also add
         // sparse connectivity initialization parameters to presynaptic kernel parameters
-        if(s.second.getMatrixType() & SynapseMatrixConnectivity::PROCEDURAL) {
+        if(s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::PROCEDURAL) {
             const auto *initSparseConnectivitySnippet = s.second.getConnectivityInitialiser().getSnippet();
             updateExtraGlobalParams(s.first, "", initSparseConnectivitySnippet->getExtraGlobalParams(), presynapticKernelParameters,
                                     {initSparseConnectivitySnippet->getRowBuildCode()});
@@ -2169,7 +2169,7 @@ std::string Backend::getFloatAtomicAdd(const std::string &ftype) const
 size_t Backend::getProceduralConnectivitySequence(const SynapseGroupInternal &sg, const ModelSpecInternal &model) const
 {
     // Assert that this synapse group has procedural connectivity
-    assert(sg.getMatrixType() & SynapseMatrixConnectivity::PROCEDURAL);
+    assert(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::PROCEDURAL);
 
     // Calculate the total threads used to initialize local neuron groups
     size_t thread = std::accumulate(model.getLocalNeuronGroups().cbegin(), model.getLocalNeuronGroups().cend(), 0,
@@ -2182,8 +2182,7 @@ size_t Backend::getProceduralConnectivitySequence(const SynapseGroupInternal &sg
     thread = std::accumulate(model.getLocalSynapseGroups().cbegin(), model.getLocalSynapseGroups().cend(), thread,
                              [this](size_t acc, const ModelSpec::SynapseGroupValueType &s)
                              {
-                                 if((s.second.getMatrixType() & SynapseMatrixConnectivity::DENSE)
-                                     && (s.second.getMatrixType() & SynapseMatrixWeight::INDIVIDUAL)
+                                 if((s.second.getMatrixConnectivity() == SynapseMatrixConnectivity::DENSE)
                                      && s.second.isWUVarInitRequired())
                                  {
                                      return (acc + Utils::padSize(s.second.getTrgNeuronGroup()->getNumNeurons(), m_KernelBlockSizes[KernelInitialize]));
