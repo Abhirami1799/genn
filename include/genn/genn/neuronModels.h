@@ -196,7 +196,7 @@ public:
 };
 
 //----------------------------------------------------------------------------
-// NeuronModels::Izhikevich
+// NeuronModels::IzhikevichAuto
 //----------------------------------------------------------------------------
 //! Izhikevich neuron with fixed parameters \cite izhikevich2003simple.
 /*! It is usually described as
@@ -207,11 +207,8 @@ public:
     I is an external input current and the voltage V is reset to parameter c and U incremented by parameter d, whenever V >= 30 mV. This is paired with a particular integration procedure of two 0.5 ms Euler time steps for the V equation followed by one 1 ms time step of the U equation. Because of its popularity we provide this model in this form here event though due to the details of the usual implementation it is strictly speaking inconsistent with the displayed equations.
 
     Variables are:
-
     - \c V - Membrane potential
     - \c U - Membrane recovery variable
-
-    Parameters are:
     - \c a - time scale of U
     - \c b - sensitivity of U
     - \c c - after-spike reset value of V
@@ -453,6 +450,40 @@ public:
     SET_PARAM_NAMES({"rate"});
     SET_VARS({{"timeStepToSpike", "scalar"}});
     SET_DERIVED_PARAMS({{"isi", [](const std::vector<double> &pars, double dt){ return 1000.0 / (pars[0] * dt); }}});
+    SET_NEEDS_AUTO_REFRACTORY(false);
+};
+
+//----------------------------------------------------------------------------
+// NeuronModels::PoissonNewAuto
+//----------------------------------------------------------------------------
+//! Poisson neurons
+/*! It has 1 state variable:
+
+    - \c timeStepToSpike - Number of timesteps to next spike
+
+    and 1 parameter:
+
+    - \c rate - Mean firing rate (Hz)
+
+    \note Internally this samples from the exponential distribution using
+    the C++ 11 \<random\> library on the CPU and by transforming the
+    uniform distribution, generated using cuRAND, with a natural log on the GPU. */
+class PoissonNewAuto : public Base
+{
+public:
+    DECLARE_MODEL(NeuronModels::PoissonNewAuto, 0, 2);
+
+    SET_SIM_CODE(
+        "if($(timeStepToSpike) <= 0.0f) {\n"
+        "    $(timeStepToSpike) += $(isi) * $(gennrand_exponential);\n"
+        "}\n"
+        "$(timeStepToSpike) -= 1.0;\n"
+    );
+
+    SET_THRESHOLD_CONDITION_CODE("$(timeStepToSpike) <= 0.0");
+    SET_VARS({{"timeStepToSpike", "scalar", VarAccess::READ_WRITE},
+              {"rate", "scalar", VarAccess::READ_ONLY}});
+    SET_DERIVED_PARAMS_NAMED({{"isi", [](const std::map<std::string, double> &vars, double dt){ return 1000.0 / (vars.at("rate") * dt); }}});
     SET_NEEDS_AUTO_REFRACTORY(false);
 };
 

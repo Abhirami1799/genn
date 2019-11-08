@@ -10,6 +10,7 @@ IMPLEMENT_MODEL(NeuronModels::SpikeSource);
 IMPLEMENT_MODEL(NeuronModels::SpikeSourceArray);
 IMPLEMENT_MODEL(NeuronModels::Poisson);
 IMPLEMENT_MODEL(NeuronModels::PoissonNew);
+IMPLEMENT_MODEL(NeuronModels::PoissonNewAuto);
 IMPLEMENT_MODEL(NeuronModels::TraubMiles);
 IMPLEMENT_MODEL(NeuronModels::TraubMilesFast);
 IMPLEMENT_MODEL(NeuronModels::TraubMilesAlt);
