@@ -16,28 +16,32 @@
 //--------------------------------------------------------------------------
 namespace
 {
-void applySynapseSubstitutions(CodeGenerator::CodeStream &os, std::string code, const std::string &errorContext, const SynapseGroupInternal &sg,
-                               const CodeGenerator::Substitutions &baseSubs, const ModelSpecInternal &model, const CodeGenerator::BackendBase &backend)
+void applySynapseSubstitutions(CodeGenerator::CodeStream &os, std::string code, const std::string &errorContext,
+                               const SynapseGroupInternal &sg, const CodeGenerator::Substitutions &baseSubs, const ModelSpecInternal &model,
+                               const CodeGenerator::BackendBase &backend)
 {
-    const auto *wu = sg.getWUModel();
-
     CodeGenerator::Substitutions synapseSubs(&baseSubs);
 
+    const auto *wum = sg.getWUModel();
+
+    // If synaptic matrix has individual state variables, read them into local variables
+    genVariableRead(os, wum->getCombinedVars(), sg.getWUVarInitialisers(), sg.getWUVarImplementation(),
+                    backend, baseSubs, sg.getName(), "l", "id_syn", model.getPrecision());
+
     // Substitute parameter and derived parameter names
-    synapseSubs.addParamValueSubstitution(wu->getCombinedDerivedParamNames(), sg.getWUDerivedParams());
-    synapseSubs.addVarNameSubstitution(wu->getExtraGlobalParams(), "", "", sg.getName());
+    synapseSubs.addParamValueSubstitution(wum->getCombinedDerivedParamNames(), sg.getWUDerivedParams());
+    synapseSubs.addVarNameSubstitution(wum->getExtraGlobalParams(), "", "", sg.getName());
 
     // Substitute names of pre and postsynaptic weight update variables
     const std::string delayedPreIdx = (sg.getDelaySteps() == NO_DELAY) ? synapseSubs["id_pre"] : "preReadDelayOffset + " + baseSubs["id_pre"];
-    synapseSubs.addVarSubstitution(wu->getPreVars(), sg.getWUPreVarInitialisers(), sg.getWUPreVarImplementation(),
+    synapseSubs.addVarSubstitution(wum->getPreVars(), sg.getWUPreVarInitialisers(), sg.getWUPreVarImplementation(),
                                    "", backend.getVarPrefix(), sg.getName() + "[" + delayedPreIdx + "]");
-
-    const std::string delayedPostIdx = (sg.getBackPropDelaySteps() == NO_DELAY) ? synapseSubs["id_post"] : "postReadDelayOffset + " + baseSubs["id_post"];
-    synapseSubs.addVarSubstitution(wu->getPostVars(), sg.getWUPostVarInitialisers(), sg.getWUPostVarImplementation(),
+    const std::string delayedPostIdx = (sg.getBackPropDelaySteps() == NO_DELAY) ? synapseSubs["id_syn"] : "postReadDelayOffset + " + baseSubs["id_post"];
+    synapseSubs.addVarSubstitution(wum->getPostVars(), sg.getWUPostVarInitialisers(), sg.getWUPostVarImplementation(),
                                    "", backend.getVarPrefix(), sg.getName() + "[" + delayedPostIdx + "]");
-    synapseSubs.addVarSubstitution(wu->getCombinedVars(), sg.getWUVarInitialisers(), sg.getWUVarImplementation(),
-                                   "", backend.getVarPrefix(), sg.getName() + "[" + synapseSubs["id_syn"] + "]");
 
+    synapseSubs.addVarSubstitution(wum->getCombinedVars(), sg.getWUVarInitialisers(), sg.getWUVarImplementation(),
+                                   "", "l");
 
     neuronSubstitutionsInSynapticCode(synapseSubs, sg, synapseSubs["id_pre"],
                                       synapseSubs["id_post"], backend.getVarPrefix(),
@@ -47,6 +51,10 @@ void applySynapseSubstitutions(CodeGenerator::CodeStream &os, std::string code, 
     //synapseSubs.applyCheckUnreplaced(code, errorContext + " : " + sg.getName());
     code= CodeGenerator::ensureFtype(code, model.getPrecision());
     os << code;
+
+    // If synaptic matrix has individual state variables, write them back to local variables
+    genVariableWriteBack(os, wum->getVars(), backend, baseSubs,
+                         sg.getName(), "l", "id_syn", model.getPrecision());
 }
 }   // Anonymous namespace
 

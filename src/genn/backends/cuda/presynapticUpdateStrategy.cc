@@ -444,7 +444,7 @@ bool PreSpanProcedural::isCompatible(const SynapseGroupInternal &sg) const
     if(sg.getMatrixConnectivity() == SynapseMatrixConnectivity::PROCEDURAL) {
         // If all variables are implemented as global, return true
         if(std::all_of(sg.getWUVarImplementation().cbegin(), sg.getWUVarImplementation().cend(),
-                       [](VarImplementation v){ return (v == VarImplementation::GLOBAL); }))
+                       [](VarImplementation v){ return (v == VarImplementation::GLOBAL) || (v == VarImplementation::PROCEDURAL); }))
         {
             return true;
         }
@@ -518,7 +518,7 @@ void PreSpanProcedural::genUpdate(CodeStream &os, const ModelSpecInternal &model
         if(::Utils::isRNGRequired(sg.getConnectivityInitialiser().getSnippet()->getRowBuildCode())) {
             os << "curandStatePhilox4_32_10_t connectRNG = dd_rng[0];" << std::endl;
             if(sg.getNumThreadsPerSpike() > 1) {
-                os << "skipahead_sequence((unsigned long long)((preInd * " << sg.getNumThreadsPerSpike() << ") + thread + " << idStart << "), &connectRNG);" << std::endl;
+                os << "skipahead_sequence((unsigned long long)((preInd * " << sg.getNumThreadsPerSpike() << ") + thread+ " << idStart << "), &connectRNG);" << std::endl;
             }
             else {
                 os << "skipahead_sequence((unsigned long long)(preInd + " << idStart << "), &connectRNG);" << std::endl;

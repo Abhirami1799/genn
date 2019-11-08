@@ -507,30 +507,61 @@ void checkUnreplacedVariables(const std::string &code, const std::string &codeNa
 }
 
 //--------------------------------------------------------------------------
-void genVariableRead(CodeStream &os, const Models::Base::VarVec &vars, const BackendBase &backend,
-                     const std::string &popName, const std::string &localVarPrefix, const std::string &id, const std::string &ftype)
+void genVariableRead(CodeStream &os, const Models::Base::VarVec &vars, const std::vector<Models::VarInit> &initialisers, const std::vector<VarImplementation> &implementation,
+                     const BackendBase &backend, const Substitutions &substitutions, const std::string &popName, const std::string &localVarPrefix, const std::string &id, const std::string &ftype)
 {
-    // Loop through variables
-    for (const auto &v : vars) {
-        // If variable is read-only add const to enforce this at compile time
-        if(v.access == VarAccess::READ_ONLY) {
-            os << "const ";
-        }
+    if(vars.size() != initialisers.size()) {
+        throw std::runtime_error("Number of variables does not match number of initialisers");
+    }
+    if(vars.size() != implementation.size()) {
+        throw std::runtime_error("Number of variables does not match number of implementations");
+    }
 
-        // If we
-        os << v.type << " " << localVarPrefix << v.name;
-        os << " = " << backend.getVarPrefix() << v.name << popName << "[" << id << "];" << std::endl;
+    // Loop through variables
+    auto var = vars.cbegin();
+    auto varInit = initialisers.cbegin();
+    auto varImpl = implementation.cbegin();
+    for (;var != vars.cend(); var++, varInit++, varImpl++) {
+        if(*varImpl == VarImplementation::INDIVIDUAL) {
+            // If variable is read-only add const to enforce this at compile time
+            if(var->access == VarAccess::READ_ONLY) {
+                os << "const ";
+            }
+
+            // If we
+            os << var->type << " " << localVarPrefix << var->name;
+            os << " = " << backend.getVarPrefix() << var->name << popName << "[" << substitutions[id] << "];" << std::endl;
+        }
+        else if(*varImpl == VarImplementation::PROCEDURAL) {
+            Substitutions varSubs(&substitutions);
+            varSubs.addVarSubstitution("value", localVarPrefix + var->name);
+            varSubs.addParamValueSubstitution(varInit->getSnippet()->getParamNames(), varInit->getParams());
+            varSubs.addParamValueSubstitution(varInit->getSnippet()->getCombinedDerivedParamNames(), varInit->getDerivedParams());
+
+            std::string code = varInit->getSnippet()->getCode();
+            varSubs.applyCheckUnreplaced(code, "initVar : " + var->name + popName);
+
+
+            // Declare local variable
+            os << var->type << " " << localVarPrefix << var->name << ";" << std::endl;
+
+            // Insert code to initialize variable into scope
+            {
+                CodeStream::Scope b(os);
+                os << code << std::endl;;
+            }
+        }
     }
 }
 //--------------------------------------------------------------------------
-void genVariableWriteBack(CodeStream &os, const Models::Base::VarVec &vars, const BackendBase &backend,
+void genVariableWriteBack(CodeStream &os, const Models::Base::VarVec &vars, const BackendBase &backend, const Substitutions &substitutions,
                           const std::string &popName, const std::string &localVarPrefix, const std::string &id, const std::string &ftype)
 {
     // Loop through variables
     for (const auto &v : vars) {
         // If variable is read-write
         if(v.access == VarAccess::READ_WRITE) {
-            os << backend.getVarPrefix() << v.name << popName << "[" << id << "]";
+            os << backend.getVarPrefix() << v.name << popName << "[" << substitutions[id] << "]";
             os << " = " << localVarPrefix << v.name << ";" << std::endl;
         }
     }
