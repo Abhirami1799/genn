@@ -473,8 +473,11 @@ std::string SynapseGroup::getSparseIndType() const
 //----------------------------------------------------------------------------
 void SynapseGroup::setDefaultMaxConnections()
 {
+    const bool procedural = (m_MatrixConnectivity == SynapseMatrixConnectivity::PROCEDURAL);
+    const bool sparse = (m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE);
+
     // If connectivity is procedural
-    if(m_MatrixConnectivity == SynapseMatrixConnectivity::PROCEDURAL) {
+    if(procedural) {
         // If there's no row build code, give an error
         if(m_ConnectivityInitialiser.getSnippet()->getRowBuildCode().empty()) {
             throw std::runtime_error("Cannot use procedural connectivity without specifying connectivity initialisation snippet");
@@ -489,7 +492,7 @@ void SynapseGroup::setDefaultMaxConnections()
     // If connectivitity initialisation snippet provides a function to calculate row length, call it
     // **NOTE** only do this for sparse connectivity as this should not be set for bitmasks
     auto calcMaxRowLengthFunc = m_ConnectivityInitialiser.getSnippet()->getCalcMaxRowLengthFunc();
-    if(calcMaxRowLengthFunc && (m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE)) {
+    if(calcMaxRowLengthFunc && (sparse || procedural)) {
         m_MaxConnections = calcMaxRowLengthFunc(getSrcNeuronGroup()->getNumNeurons(), getTrgNeuronGroup()->getNumNeurons(),
                                                 m_ConnectivityInitialiser.getParams());
     }
@@ -501,7 +504,7 @@ void SynapseGroup::setDefaultMaxConnections()
     // If connectivitity initialisation snippet provides a function to calculate row length, call it
     // **NOTE** only do this for sparse connectivity as this should not be set for bitmasks
     auto calcMaxColLengthFunc = m_ConnectivityInitialiser.getSnippet()->getCalcMaxColLengthFunc();
-    if(calcMaxColLengthFunc && (m_MatrixConnectivity == SynapseMatrixConnectivity::SPARSE)) {
+    if(calcMaxColLengthFunc && (sparse || procedural)) {
         m_MaxSourceConnections = calcMaxColLengthFunc(getSrcNeuronGroup()->getNumNeurons(), getTrgNeuronGroup()->getNumNeurons(),
                                                       m_ConnectivityInitialiser.getParams());
     }
