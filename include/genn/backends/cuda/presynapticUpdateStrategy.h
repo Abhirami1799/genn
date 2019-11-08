@@ -42,7 +42,8 @@ public:
     //! How many neurons does each thread accumulate the outputs of into shared memory
     virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const = 0;
 
-    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const = 0;
+    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                             const Substitutions &popSubs, const Backend &backend) const = 0;
 
     //! Generate presynaptic update code
     virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, 
@@ -50,7 +51,8 @@ public:
                            BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
                            BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const = 0;
 
-    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const = 0;
+    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                              const Substitutions &popSubs, const Backend &backend) const = 0;
 };
 
 //--------------------------------------------------------------------------
@@ -75,7 +77,8 @@ public:
     //! How many neurons does each thread accumulate the outputs of into shared memory
     virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
-    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const override;
+    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                             const Substitutions &popSubs, const Backend &backend) const override;
 
     //! Generate presynaptic update code
     virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
@@ -83,7 +86,8 @@ public:
                            BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
                            BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
 
-    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const override;
+    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                              const Substitutions &popSubs, const Backend &backend) const override;
 };
 
 //--------------------------------------------------------------------------
@@ -108,7 +112,8 @@ public:
     //! How many neurons does each thread accumulate the outputs of into shared memory
     virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
-    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const override;
+    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                             const Substitutions &popSubs, const Backend &backend) const override;
 
     //! Generate presynaptic update code
     virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
@@ -116,7 +121,16 @@ public:
                            BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
                            BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
 
-    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const override;
+    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                              const Substitutions &popSubs, const Backend &backend) const override;
+
+private:
+    //--------------------------------------------------------------------------
+    // Private methods
+    //--------------------------------------------------------------------------
+    //! Are input currents emitted by this presynaptic update accumulated into a register?
+    bool shouldAccumulateInRegister(const SynapseGroupInternal &sg) const;
+
 };
 
 //--------------------------------------------------------------------------
@@ -141,7 +155,8 @@ public:
     //! How many neurons does each thread accumulate the outputs of into shared memory
     virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
-    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const override;
+    virtual void genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                             const Substitutions &popSubs, const Backend &backend) const override;
 
     //! Generate presynaptic update code
     virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
@@ -149,7 +164,8 @@ public:
                            BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
                            BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
 
-    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, const Backend &backend) const override;
+    virtual void genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                              const Substitutions &popSubs, const Backend &backend) const override;
 };
 
 }   // namespace PresynapticUpdateStrategy
