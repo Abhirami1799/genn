@@ -39,14 +39,14 @@ public:
     //! Are input currents emitted by this presynaptic update accumulated into a register?
     virtual bool shouldAccumulateInRegister(const SynapseGroupInternal &sg, const Backend &backend) const = 0;
 
-    //! Are input currents emitted by this presynaptic update accumulated into a shared memory array?
-    virtual bool shouldAccumulateInSharedMemory(const SynapseGroupInternal &sg, const Backend &backend) const = 0;
+    //! How many neurons does each thread accumulate the outputs of into shared memory
+    virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const = 0;
 
     //! Generate presynaptic update code
-    virtual void genCode(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                         const Substitutions &popSubs, const Backend &backend, bool trueSpike,
-                         BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
-                         BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const = 0;
+    virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, 
+                           const Substitutions &popSubs, const Backend &backend, bool trueSpike,
+                           BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
+                           BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const = 0;
 };
 
 //--------------------------------------------------------------------------
@@ -68,14 +68,14 @@ public:
     //! Are input currents emitted by this presynaptic update accumulated into a register?
     virtual bool shouldAccumulateInRegister(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
-    //! Are input currents emitted by this presynaptic update accumulated into a shared memory array?
-    virtual bool shouldAccumulateInSharedMemory(const SynapseGroupInternal &sg, const Backend &backend) const override;
+    //! How many neurons does each thread accumulate the outputs of into shared memory
+    virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
     //! Generate presynaptic update code
-    virtual void genCode(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                         const Substitutions &popSubs, const Backend &backend, bool trueSpike,
-                         BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
-                         BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
+    virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                           const Substitutions &popSubs, const Backend &backend, bool trueSpike,
+                           BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
+                           BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
 };
 
 //--------------------------------------------------------------------------
@@ -97,14 +97,14 @@ public:
     //! Are input currents emitted by this presynaptic update accumulated into a register?
     virtual bool shouldAccumulateInRegister(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
-    //! Are input currents emitted by this presynaptic update accumulated into a shared memory array?
-    virtual bool shouldAccumulateInSharedMemory(const SynapseGroupInternal &sg, const Backend &backend) const override;
+    //! How many neurons does each thread accumulate the outputs of into shared memory
+    virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
     //! Generate presynaptic update code
-    virtual void genCode(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                         const Substitutions &popSubs, const Backend &backend, bool trueSpike,
-                         BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
-                         BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
+    virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                           const Substitutions &popSubs, const Backend &backend, bool trueSpike,
+                           BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
+                           BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
 };
 
 //--------------------------------------------------------------------------
@@ -126,14 +126,14 @@ public:
     //! Are input currents emitted by this presynaptic update accumulated into a register?
     virtual bool shouldAccumulateInRegister(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
-    //! Are input currents emitted by this presynaptic update accumulated into a shared memory array?
-    virtual bool shouldAccumulateInSharedMemory(const SynapseGroupInternal &sg, const Backend &backend) const override;
+    //! How many neurons does each thread accumulate the outputs of into shared memory
+    virtual size_t getSharedMemoryPerThread(const SynapseGroupInternal &sg, const Backend &backend) const override;
 
     //! Generate presynaptic update code
-    virtual void genCode(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                         const Substitutions &popSubs, const Backend &backend, bool trueSpike,
-                         BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
-                         BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
+    virtual void genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
+                           const Substitutions &popSubs, const Backend &backend, bool trueSpike,
+                           BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
+                           BackendBase::SynapseGroupHandler wumProceduralConnectHandler) const override;
 };
 }   // namespace PresynapticUpdateStrategy
 }   // namespace CUDA
