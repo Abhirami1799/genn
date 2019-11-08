@@ -25,6 +25,8 @@
 #include "modelSpec.h"
 
 // GeNN code generator includes
+#include "code_generator/backendBase.h"
+#include "code_generator/codeStream.h"
 #include "code_generator/substitutions.h"
 
 //--------------------------------------------------------------------------
@@ -501,6 +503,36 @@ void checkUnreplacedVariables(const std::string &code, const std::string &codeNa
         vars = (vars.find(",") != std::string::npos) ? "variables " + vars + " were " : "variable " + vars + " was ";
        
         throw std::runtime_error("The "+vars+"undefined in code "+codeName+".");
+    }
+}
+
+//--------------------------------------------------------------------------
+void genVariableRead(CodeStream &os, const Models::Base::VarVec &vars, const BackendBase &backend,
+                     const std::string &popName, const std::string &localVarPrefix, const std::string &id, const std::string &ftype)
+{
+    // Loop through variables
+    for (const auto &v : vars) {
+        // If variable is read-only add const to enforce this at compile time
+        if(v.access == VarAccess::READ_ONLY) {
+            os << "const ";
+        }
+
+        // If we
+        os << v.type << " " << localVarPrefix << v.name;
+        os << " = " << backend.getVarPrefix() << v.name << popName << "[" << id << "];" << std::endl;
+    }
+}
+//--------------------------------------------------------------------------
+void genVariableWriteBack(CodeStream &os, const Models::Base::VarVec &vars, const BackendBase &backend,
+                          const std::string &popName, const std::string &localVarPrefix, const std::string &id, const std::string &ftype)
+{
+    // Loop through variables
+    for (const auto &v : vars) {
+        // If variable is read-write
+        if(v.access == VarAccess::READ_WRITE) {
+            os << backend.getVarPrefix() << v.name << popName << "[" << id << "]";
+            os << " = " << localVarPrefix << v.name << ";" << std::endl;
+        }
     }
 }
 

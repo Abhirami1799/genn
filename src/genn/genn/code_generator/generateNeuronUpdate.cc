@@ -140,9 +140,7 @@ void CodeGenerator::generateNeuronUpdate(CodeStream &os, const ModelSpecInternal
                 }
 
                 // If synapse group has individual postsynaptic variables, read then into registers
-                if (sg->getMatrixType() & SynapseMatrixWeight::INDIVIDUAL_PSM) {
-                    genVariableRead(os, psm->getVars(), backend, sg->getPSModelTargetName(), "lps", popSubs["id"], model.getPrecision(), 1);
-                }
+                genVariableRead(os, psm->getVars(), backend, sg->getPSModelTargetName(), "lps", popSubs["id"], model.getPrecision(), 1);
 
                 Substitutions inSynSubs(&neuronSubs);
                 inSynSubs.addVarSubstitution("inSyn", "linSyn");
@@ -164,9 +162,7 @@ void CodeGenerator::generateNeuronUpdate(CodeStream &os, const ModelSpecInternal
                 os << backend.getVarPrefix() << "inSyn"  << sg->getPSModelTargetName() << "[" << inSynSubs["id"] << "] = linSyn;" << std::endl;
 
                 // If synapse group has individual postsynaptic variables, read then into registers
-                if (sg->getMatrixType() & SynapseMatrixWeight::INDIVIDUAL_PSM) {
-                    genVariableWriteBack(os, psm->getVars(), backend, sg->getPSModelTargetName(), "lps", popSubs["id"], model.getPrecision(), 1);
-                }
+                genVariableWriteBack(os, psm->getVars(), backend, sg->getPSModelTargetName(), "lps", popSubs["id"], model.getPrecision(), 1);
             }
 
             // Loop through all of neuron group's current sources

@@ -18,6 +18,8 @@ class SynapseGroupInternal;
 
 namespace CodeGenerator
 {
+class BackendBase;
+class CodeStream;
 class Substitutions;
 }
 
@@ -132,6 +134,14 @@ std::string ensureFtype(const std::string &oldcode, const std::string &type);
  */
 //--------------------------------------------------------------------------
 void checkUnreplacedVariables(const std::string &code, const std::string &codeName);
+
+//! Generate code to read variables from global memory into registers
+void genVariableRead(CodeStream &os, const Models::Base::VarVec &vars, const BackendBase &backend,
+                     const std::string &popName, const std::string &localVarPrefix, const std::string &id, const std::string &ftype);
+
+//! Generate code to write variables back to global memory from registers
+void genVariableWriteBack(CodeStream &os, const Models::Base::VarVec &vars, const BackendBase &backend,
+                          const std::string &popName, const std::string &localVarPrefix, const std::string &id, const std::string &ftype);
 
 void preNeuronSubstitutionsInSynapticCode(
     Substitutions &substitutions,
