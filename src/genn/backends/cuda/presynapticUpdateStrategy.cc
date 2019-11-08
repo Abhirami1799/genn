@@ -99,7 +99,7 @@ size_t PreSpan::getSharedMemoryPerThread(const SynapseGroupInternal &sg, const B
 }
 //----------------------------------------------------------------------------
 void PreSpan::genPreamble(CodeStream &os, const ModelSpecInternal &, const SynapseGroupInternal &sg,
-                          const Substitutions &, const Backend &backend) const
+                          const Substitutions &, const Backend &backend, size_t) const
 {
     if (isSmallSharedMemoryPop(sg, backend)) {
         genSmallSharedMemoryPopPreamble(os, sg);
@@ -107,7 +107,7 @@ void PreSpan::genPreamble(CodeStream &os, const ModelSpecInternal &, const Synap
 }
 //----------------------------------------------------------------------------
 void PreSpan::genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                        const Substitutions &popSubs, const Backend &backend, bool trueSpike,
+                        const Substitutions &popSubs, const Backend &backend, bool trueSpike, size_t,
                         BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
                         BackendBase::SynapseGroupHandler) const
 {
@@ -213,7 +213,7 @@ void PreSpan::genUpdate(CodeStream &os, const ModelSpecInternal &model, const Sy
 }
 //----------------------------------------------------------------------------
 void PreSpan::genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                           const Substitutions &, const Backend &backend) const
+                           const Substitutions &, const Backend &backend, size_t) const
 {
     if (isSmallSharedMemoryPop(sg, backend)) {
         genSmallSharedMemoryPopPostamble(os, model, sg, backend);
@@ -250,7 +250,7 @@ bool PostSpan::isCompatible(const SynapseGroupInternal &sg) const
 }
 //----------------------------------------------------------------------------
 void PostSpan::genPreamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                           const Substitutions &, const Backend &backend) const
+                           const Substitutions &, const Backend &backend, size_t) const
 {
     // If data structure is dense, we can accumulate output directly into register
     if (shouldAccumulateInRegister(sg)) {
@@ -268,7 +268,7 @@ size_t PostSpan::getSharedMemoryPerThread(const SynapseGroupInternal &sg, const 
 }
 //----------------------------------------------------------------------------
 void PostSpan::genUpdate(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg, 
-                         const Substitutions &popSubs, const Backend &backend, bool trueSpike,
+                         const Substitutions &popSubs, const Backend &backend, bool trueSpike, size_t,
                          BackendBase::SynapseGroupHandler wumThreshHandler, BackendBase::SynapseGroupHandler wumSimHandler,
                          BackendBase::SynapseGroupHandle) const
 {
@@ -404,7 +404,7 @@ void PostSpan::genUpdate(CodeStream &os, const ModelSpecInternal &model, const S
 }
 //----------------------------------------------------------------------------
 void PostSpan::genPostamble(CodeStream &os, const ModelSpecInternal &model, const SynapseGroupInternal &sg,
-                            const Substitutions &popSubs, const Backend &backend) const
+                            const Substitutions &popSubs, const Backend &backend, size_t) const
 {
     // If we should accumulate output directly into register
     if (shouldAccumulateInRegister(sg)) {
