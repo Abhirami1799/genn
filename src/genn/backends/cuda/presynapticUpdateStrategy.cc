@@ -458,8 +458,37 @@ void PreSpanProcedural::genCode(CodeStream &os, const ModelSpecInternal &model, 
         // going to be, in turn, substituted into procedural connectivity generation code
         synSubs.addVarSubstitution("id_post", "$(0)");
 
-        // If this synaptic matrix has individual state variables
-        os << "unsigned int synAddress = preInd * " << sg.getMaxConnections() << ";" << std::endl;
+        // Create second substitution stack for generating procedural connectivity code
+        Substitutions connSubs(&procPopSubs);
+
+        // If we are using more than one thread to process each row
+        if(sg.getNumThreadsPerSpike() > 1) {
+            // Calculate how long the sub-row to process on each thread is
+            const unsigned int numPostPerThread = Utils::ceilDivide(numTrgNeurons,
+                                                                    sg.getNumThreadsPerSpike());
+            os << "const unsigned int idPostStart = thread * " << numPostPerThread << ";" << std::endl;
+
+            os << "unsigned int synAddress = (preInd * " << sg.getMaxConnections() << ") + idPostStart;" << std::endl;
+
+            // If number of post neurons per thread directly divides total number of postsynaptic neurons
+            if ((numTrgNeurons % numPostPerThread) == 0) {
+                connSubs.addVarSubstitution("num_post", std::to_string(numPostPerThread));
+            }
+            // Otherwise clamp
+            else {
+                os << "const unsigned int numPost = (thread == " << (sg.getNumThreadsPerSpike() - 1) << ") ? " << (numTrgNeurons % numPostPerThread) << " : " << numPostPerThread << ";" << std::endl;
+                connSubs.addVarSubstitution("num_post", "numPost");
+            }
+
+            connSubs.addVarSubstitution("id_post_begin", "idPostStart");
+        }
+        else {
+            os << "unsigned int synAddress = preInd * " << sg.getMaxConnections() << ";" << std::endl;
+
+            connSubs.addVarSubstitution("id_post_begin", "0");
+            connSubs.addVarSubstitution("num_post", std::to_string(numTrgNeurons));
+        }
+
         synSubs.addVarSubstitution("id_syn", "synAddress");
 
         // If dendritic delay is required, always use atomic operation to update dendritic delay buffer
@@ -486,38 +515,8 @@ void PreSpanProcedural::genCode(CodeStream &os, const ModelSpecInternal &model, 
         // After updating this synapse, advance to next
         presynapticUpdate << "synAddress++;" << std::endl;
 
-        // Create second substitution stack for generating procedural connectivity code
-        Substitutions connSubs(&procPopSubs);
-
         // When a synapse should be 'added', substitute in presynaptic update code
         connSubs.addFuncSubstitution("addSynapse", 1, presynapticUpdateStream.str());
-
-        // If we are using more than one thread to process each row
-        if(sg.getNumThreadsPerSpike() > 1) {
-            // Calculate how long the sub-row to process on each thread is
-            const unsigned int numPostPerThread = Utils::ceilDivide(numTrgNeurons,
-                                                                    sg.getNumThreadsPerSpike());
-
-            os << "const unsigned int idPostStart = thread * " << numPostPerThread << ";" << std::endl;
-
-            // If number of post neurons per thread directly divides total number of postsynaptic neurons
-            if ((numTrgNeurons % numPostPerThread) == 0) {
-                connSubs.addVarSubstitution("num_post", std::to_string(numPostPerThread));
-            }
-            // Otherwise clamp
-            else {
-                os << "const unsigned int numPost = (thread == " << (sg.getNumThreadsPerSpike() - 1) << ") ? " << (numTrgNeurons % numPostPerThread) << " : " << numPostPerThread << ";" << std::endl;
-                connSubs.addVarSubstitution("num_post", "numPost");
-            }
-
-            connSubs.addVarSubstitution("id_post_begin", "idPostStart");
-
-        }
-        // Otherwise, set the beginning and end ID to the entire range of postsynaptic neurons
-        else {
-            connSubs.addVarSubstitution("id_post_begin", "0");
-            connSubs.addVarSubstitution("num_post", std::to_string(numTrgNeurons));
-        }
 
         // Generate procedural connectivity code
         wumProceduralConnectHandler(os, sg, connSubs);

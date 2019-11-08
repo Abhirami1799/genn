@@ -1108,6 +1108,7 @@ void Backend::genInit(CodeStream &os, const ModelSpecInternal &model,
                         const size_t numPostPerThread = Utils::ceilDivide(numTrgNeurons, sg.getNumThreadsPerSpike());
 
                         os << "const unsigned int idPostStart = thread * " << numPostPerThread << ";" << std::endl;
+                        os << "unsigned int idx = (preInd * " << sg.getMaxConnections() << ") + idPostStart;" << std::endl;
 
                         // If number of post neurons per thread directly divides total number of postsynaptic neurons
                         if((numTrgNeurons % numPostPerThread) == 0) {
@@ -1119,11 +1120,13 @@ void Backend::genInit(CodeStream &os, const ModelSpecInternal &model,
                             popSubs.addVarSubstitution("num_post", "numPost");
                         }
 
-                        popSubs.addVarSubstitution("id_post_begin", "idPostStart");                        
+                        popSubs.addVarSubstitution("id_post_begin", "idPostStart");
 
                     }
                     // Otherwise, set the beginning and end ID to the entire range of postsynaptic neurons
                     else {
+                        os << "unsigned int idx = preInd * " << sg.getMaxConnections() << ";" << std::endl;
+
                         popSubs.addVarSubstitution("id_post_begin", "0");
                         popSubs.addVarSubstitution("num_post", std::to_string(numTrgNeurons));
                     }
@@ -1156,9 +1159,6 @@ void Backend::genInit(CodeStream &os, const ModelSpecInternal &model,
 
                     // After initialising all variables associated with this synapse, advance to next
                     valueInit << "idx++;" << std::endl;
-
-                    // Calculate synapse index for first row
-                    os << "unsigned int idx = preInd * " << sg.getMaxConnections() << ";" << std::endl;
 
                     // Substitute our value initialization code for the addSynapse function
                     popSubs.addFuncSubstitution("addSynapse", 1, valueInitStream.str());
