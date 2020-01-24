@@ -396,7 +396,6 @@ bool NeuronGroup::canInitBeMerged(const NeuronGroup &other) const
             }
         }
 
-
         // If both groups have the same number of current sources
         auto otherCurrentSources = other.getCurrentSources();
         if(!checkCompatibleUnordered(getCurrentSources(), otherCurrentSources,

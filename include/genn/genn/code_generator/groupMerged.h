@@ -59,6 +59,48 @@ protected:
                            });
     }
 
+    template<typename V>
+    bool isVarInitParamHeterogeneous(size_t varIndex, size_t paramIndex, 
+                                     V getVarInitialisers) const
+    {
+        // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+        const auto *varInitSnippet = (getArchetype().*getVarInitialisers)().at(varIndex).getSnippet();
+        const std::string paramName = varInitSnippet->getParamNames().at(paramIndex);
+        if(varInitSnippet->getCode().find("$(" + paramName + ")") == std::string::npos) {
+            return false;
+        }
+        // Otherwise, return whether values across all groups are heterogeneous
+        else {
+            return isParamValueHeterogeneous(
+                paramIndex,
+                [varIndex, getVarInitialisers](const SynapseGroupInternal &sg)
+                {
+                    return (sg.*getVarInitialisers)().at(varIndex).getParams();
+                });
+        }
+    }
+
+    template<typename V>
+    bool isVarInitDerivedParamHeterogeneous(size_t varIndex, size_t paramIndex,
+                                            V getVarInitialisers) const
+    {
+        // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+        const auto *varInitSnippet = (getArchetype().*getVarInitialisers)().at(varIndex).getSnippet();
+        const std::string derivedParamName = varInitSnippet->getDerivedParams().at(paramIndex).name;
+        if(varInitSnippet->getCode().find("$(" + derivedParamName + ")") == std::string::npos) {
+            return false;
+        }
+        // Otherwise, return whether values across all groups are heterogeneous
+        else {
+            return isParamValueHeterogeneous(
+                paramIndex,
+                [varIndex, getVarInitialisers](const SynapseGroupInternal &sg)
+                {
+                    return (sg.*getVarInitialisers)().at(varIndex).getDerivedParams();
+                });
+        }
+    }
+
 private:
     //------------------------------------------------------------------------
     // Members
@@ -201,9 +243,15 @@ public:
     std::string getDendriticDelayOffset(const std::string &offset = "") const;
 
     //! Is the weight update model variable initialization parameter implemented as a heterogeneous parameter?
-    bool isWUVarInitParamHeterogeneous(size_t varIndex, size_t paramIndex) const;
+    bool isWUVarInitParamHeterogeneous(size_t varIndex, size_t paramIndex) const
+    {
+        return isVarInitParamHeterogeneous(varIndex, paramIndex, &SynapseGroupInternal::getWUVarInitialisers);
+    }
     
     //! Is the weight update model variable initialization derived parameter implemented as a heterogeneous parameter?
-    bool isWUVarInitDerivedParamHeterogeneous(size_t varIndex, size_t paramIndex) const;
+    bool isWUVarInitDerivedParamHeterogeneous(size_t varIndex, size_t paramIndex) const
+    {
+        return isVarInitDerivedParamHeterogeneous(varIndex, paramIndex, &SynapseGroupInternal::getWUVarInitialisers);
+    }
 };
 }   // namespace CodeGenerator

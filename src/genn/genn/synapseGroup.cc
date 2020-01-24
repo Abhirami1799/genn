@@ -533,20 +533,9 @@ bool SynapseGroup::canPSBeLinearlyCombined(const SynapseGroup &other) const
 //----------------------------------------------------------------------------
 bool SynapseGroup::canWUInitBeMerged(const SynapseGroup &other) const
 {
-    if((getMatrixType() == other.getMatrixType())
+    return ((getMatrixType() == other.getMatrixType())
        && (getSparseIndType() == other.getSparseIndType())
-       && (getWUModel()->getVars() == other.getWUModel()->getVars()))
-    {
-        // if any of the variable's initialisers can't be merged, return false
-        /*for(size_t i = 0; i < getWUVarInitialisers().size(); i++) {
-            if(!getWUVarInitialisers()[i].canBeMerged(other.getWUVarInitialisers()[i])) {
-                return false;
-            }
-        }*/
-
-        return true;
-    }
-    return false;
+       && (getWUModel()->getVars() == other.getWUModel()->getVars()));
 }
 //----------------------------------------------------------------------------
 bool SynapseGroup::canWUPreInitBeMerged(const SynapseGroup &other) const
