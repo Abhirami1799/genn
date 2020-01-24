@@ -73,7 +73,7 @@ bool CodeGenerator::NeuronGroupMerged::isDerivedParamHeterogeneous(size_t index)
 bool CodeGenerator::NeuronGroupMerged::isCurrentSourceParamHeterogeneous(size_t childIndex, size_t paramIndex) const
 {
     // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
-    const auto *csm = getArchetype().getCurrentSources().at(childIndex)->getCurrentSourceModel();
+    const auto *csm = m_SortedCurrentSources[0][childIndex]->getCurrentSourceModel();
     const std::string paramName = csm->getParamNames().at(paramIndex);
     if(csm->getInjectionCode().find("$(" + paramName + ")") == std::string::npos) {
         return false;
@@ -81,22 +81,82 @@ bool CodeGenerator::NeuronGroupMerged::isCurrentSourceParamHeterogeneous(size_t 
     // Otherwise, return whether values across all groups are heterogeneous
     else {
         return isChildParamValueHeterogeneous(childIndex, paramIndex, m_SortedCurrentSources,
-                                              [](const CurrentSourceInternal *cs) { return cs->getParams();  });
+                                              &CurrentSourceInternal::getParams);
     }
 }
 //----------------------------------------------------------------------------
 bool CodeGenerator::NeuronGroupMerged::isCurrentSourceDerivedParamHeterogeneous(size_t childIndex, size_t paramIndex) const
 {
     // If derived parameter isn't referenced in code, there's no point implementing it hetereogeneously!
-    const auto *csm = getArchetype().getCurrentSources().at(childIndex)->getCurrentSourceModel();
+    const auto *csm = m_SortedCurrentSources[0][childIndex]->getCurrentSourceModel();
     const std::string derivedParamName = csm->getDerivedParams().at(paramIndex).name;
     if(csm->getInjectionCode().find("$(" + derivedParamName + ")") == std::string::npos) {
         return false;
     }
     // Otherwise, return whether values across all groups are heterogeneous
     else {
-        return isChildParamValueHeterogeneous(childIndex, paramIndex, m_SortedCurrentSources,
-                                              [](const CurrentSourceInternal *cs) { return cs->getDerivedParams();  });
+        return isChildParamValueHeterogeneous(childIndex, paramIndex, m_SortedCurrentSources, 
+                                              &CurrentSourceInternal::getDerivedParams);
+    }
+}
+//----------------------------------------------------------------------------
+bool CodeGenerator::NeuronGroupMerged::isInSynWithPostCodeParamHeterogeneous(size_t childIndex, size_t paramIndex) const
+{
+    // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+    const auto *wum = m_SortedInSynWithPostCode[0][childIndex]->getWUModel();
+    const std::string paramName = wum->getParamNames().at(paramIndex);
+    if(wum->getPostSpikeCode().find("$(" + paramName + ")") == std::string::npos) {
+        return false;
+    }
+    // Otherwise, return whether values across all groups are heterogeneous
+    else {
+        return isChildParamValueHeterogeneous(childIndex, paramIndex, m_SortedInSynWithPostCode,
+                                              &SynapseGroupInternal::getWUParams);
+    }
+}
+//----------------------------------------------------------------------------
+bool CodeGenerator::NeuronGroupMerged::isInSynWithPostCodeDerivedParamHeterogeneous(size_t childIndex, size_t paramIndex) const
+{
+    // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+    const auto *wum = m_SortedInSynWithPostCode[0][childIndex]->getWUModel();
+    const std::string derivedParamName = wum->getDerivedParams().at(paramIndex).name;
+    if(wum->getPostSpikeCode().find("$(" + derivedParamName + ")") == std::string::npos) {
+        return false;
+    }
+    // Otherwise, return whether values across all groups are heterogeneous
+    else {
+        return isChildParamValueHeterogeneous(childIndex, paramIndex, m_SortedInSynWithPostCode,
+                                              &SynapseGroupInternal::getWUDerivedParams);
+    }
+}
+//----------------------------------------------------------------------------
+bool CodeGenerator::NeuronGroupMerged::isOutSynWithPreCodeParamHeterogeneous(size_t childIndex, size_t paramIndex) const
+{
+    // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+    const auto *wum = m_SortedOutSynWithPreCode[0][childIndex]->getWUModel();
+    const std::string paramName = wum->getParamNames().at(paramIndex);
+    if(wum->getPreSpikeCode().find("$(" + paramName + ")") == std::string::npos) {
+        return false;
+    }
+    // Otherwise, return whether values across all groups are heterogeneous
+    else {
+        return isChildParamValueHeterogeneous(childIndex, paramIndex, m_SortedOutSynWithPreCode,
+                                              &SynapseGroupInternal::getWUParams);
+    }
+}
+//----------------------------------------------------------------------------
+bool CodeGenerator::NeuronGroupMerged::isOutSynWithPreCodeDerivedParamHeterogeneous(size_t childIndex, size_t paramIndex) const
+{
+    // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+    const auto *wum = m_SortedOutSynWithPreCode[0][childIndex]->getWUModel();
+    const std::string derivedParamName = wum->getDerivedParams().at(paramIndex).name;
+    if(wum->getPreSpikeCode().find("$(" + derivedParamName + ")") == std::string::npos) {
+        return false;
+    }
+    // Otherwise, return whether values across all groups are heterogeneous
+    else {
+        return isChildParamValueHeterogeneous(childIndex, paramIndex, m_SortedOutSynWithPreCode,
+                                              &SynapseGroupInternal::getWUDerivedParams);
     }
 }
 

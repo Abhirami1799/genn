@@ -59,6 +59,7 @@ protected:
                            });
     }
 
+    //! Helper to test whether a variable initialiser param values are heterogeneous across merged group
     template<typename V>
     bool isVarInitParamHeterogeneous(size_t varIndex, size_t paramIndex, 
                                      V getVarInitialisers) const
@@ -73,13 +74,14 @@ protected:
         else {
             return isParamValueHeterogeneous(
                 paramIndex,
-                [varIndex, getVarInitialisers](const SynapseGroupInternal &sg)
+                [varIndex, getVarInitialisers](const G &sg)
                 {
                     return (sg.*getVarInitialisers)().at(varIndex).getParams();
                 });
         }
     }
 
+    //! Helper to test whether a variable initialiser derived param values are heterogeneous across merged group
     template<typename V>
     bool isVarInitDerivedParamHeterogeneous(size_t varIndex, size_t paramIndex,
                                             V getVarInitialisers) const
@@ -94,7 +96,7 @@ protected:
         else {
             return isParamValueHeterogeneous(
                 paramIndex,
-                [varIndex, getVarInitialisers](const SynapseGroupInternal &sg)
+                [varIndex, getVarInitialisers](const G &sg)
                 {
                     return (sg.*getVarInitialisers)().at(varIndex).getDerivedParams();
                 });
@@ -132,11 +134,79 @@ public:
     //! Is the derived parameter implemented as a heterogeneous parameter?
     bool isDerivedParamHeterogeneous(size_t index) const;
 
+    //! Is the neuron variable initialization parameter implemented as a heterogeneous parameter?
+    bool isVarInitParamHeterogeneous(size_t varIndex, size_t paramIndex) const
+    {
+        return GroupMerged<NeuronGroupInternal>::isVarInitParamHeterogeneous(
+            varIndex, paramIndex, &NeuronGroupInternal::getVarInitialisers);
+    }
+
+    //! Is the neuron variable initialization derived parameter implemented as a heterogeneous parameter?
+    bool isVarInitDerivedParamHeterogeneous(size_t varIndex, size_t paramIndex) const
+    {
+        return GroupMerged<NeuronGroupInternal>::isVarInitDerivedParamHeterogeneous(
+            varIndex, paramIndex, &NeuronGroupInternal::getVarInitialisers);
+    }
+
     //! Is the current source parameter implemented as a heterogeneous parameter?
     bool isCurrentSourceParamHeterogeneous(size_t childIndex, size_t paramIndex) const;
 
     //! Is the current source derived parameter implemented as a heterogeneous parameter?
     bool isCurrentSourceDerivedParamHeterogeneous(size_t childIndex, size_t paramIndex) const;
+
+    //! Is the current source variable initialisation parameter implemented as a heterogeneous parameter?
+    bool isCurrentSourceVarInitParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex) const
+    {
+        return isChildVarInitParamHeterogeneous(childIndex, varIndex, paramIndex, 
+                                                m_SortedCurrentSources, &CurrentSourceInternal::getVarInitialisers);
+    }
+
+    //! Is the current source variable initialisation derived parameter implemented as a heterogeneous parameter?
+    bool isCurrentSourceVarInitDerivedParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex) const
+    {
+        return isChildVarInitDerivedParamHeterogeneous(childIndex, varIndex, paramIndex,
+                                                       m_SortedCurrentSources, &CurrentSourceInternal::getVarInitialisers);
+    }
+
+    //! Is the insyn postsynaptic parameter implemented as a heterogeneous parameter?
+    bool isInSynWithPostCodeParamHeterogeneous(size_t childIndex, size_t paramIndex) const;
+
+    //! Is the insyn postsynaptic derived parameter implemented as a heterogeneous parameter?
+    bool isInSynWithPostCodeDerivedParamHeterogeneous(size_t childIndex, size_t paramIndex) const;
+
+    //! Is the insyn postsynaptic variable initialisation parameter implemented as a heterogeneous parameter?
+    bool isInSynWithPostCodeVarInitParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex) const
+    {
+        return isChildVarInitParamHeterogeneous(childIndex, varIndex, paramIndex,
+                                                m_SortedInSynWithPostCode, &SynapseGroupInternal::getWUPostVarInitialisers);
+    }
+
+    //! Is the insyn postsynaptic variable initialisation derived parameter implemented as a heterogeneous parameter?
+    bool isInSynWithPostCodeVarInitDerivedParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex) const
+    {
+        return isChildVarInitDerivedParamHeterogeneous(childIndex, varIndex, paramIndex,
+                                                       m_SortedInSynWithPostCode, &SynapseGroupInternal::getWUPostVarInitialisers);
+    }
+
+    //! Is the outsyn presynaptic parameter implemented as a heterogeneous parameter?
+    bool isOutSynWithPreCodeParamHeterogeneous(size_t childIndex, size_t paramIndex) const;
+
+    //! Is the outsyn presynaptic derived parameter implemented as a heterogeneous parameter?
+    bool isOutSynWithPreCodeDerivedParamHeterogeneous(size_t childIndex, size_t paramIndex) const;
+   
+    //! Is the outsyn presynaptic variable initialisation parameter implemented as a heterogeneous parameter?
+    bool isOutSynWithPreCodeVarInitParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex) const
+    {
+        return isChildVarInitParamHeterogeneous(childIndex, varIndex, paramIndex,
+                                                m_SortedOutSynWithPreCode, &SynapseGroupInternal::getWUPreVarInitialisers);
+    }
+
+    //! Is the outsyn presynaptic variable initialisation derived parameter implemented as a heterogeneous parameter?
+    bool isOutSynWithPreCodeVarInitDerivedParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex) const
+    {
+        return isChildVarInitDerivedParamHeterogeneous(childIndex, varIndex, paramIndex,
+                                                       m_SortedOutSynWithPreCode, &SynapseGroupInternal::getWUPreVarInitialisers);
+    }
 
     const std::vector<std::vector<std::pair<SynapseGroupInternal *, std::vector<SynapseGroupInternal *>>>> &getSortedMergedInSyns() const{ return m_SortedMergedInSyns; }
     const std::vector<std::vector<CurrentSourceInternal *>> &getSortedCurrentSources() const { return m_SortedCurrentSources; }
@@ -198,16 +268,66 @@ private:
                                         G getParamValuesFn) const
     {
         // Get value of archetype derived parameter
-        const double firstValue = getParamValuesFn(sortedGroupChildren[0][childIndex]).at(paramIndex);
+        const double firstValue = (sortedGroupChildren[0][childIndex]->*getParamValuesFn)().at(paramIndex);
 
         // Loop through groups within merged group
         for(size_t i = 0; i < sortedGroupChildren.size(); i++) {
             const auto group = sortedGroupChildren[i][childIndex];
-            if(getParamValuesFn(group).at(paramIndex) != firstValue) {
+            if((group->*getParamValuesFn)().at(paramIndex) != firstValue) {
                 return true;
             }
         }
         return false;
+    }
+    
+    template<typename T, typename G>
+    bool isChildVarInitParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex, 
+                                          const std::vector<std::vector<T>> &sortedGroupChildren,
+                                          G getVarInitialisersFn) const
+    {
+        // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+        const auto &firstVarInit = (sortedGroupChildren[0][childIndex]->*getVarInitialisersFn)().at(varIndex);
+        const std::string paramName = firstVarInit.getSnippet()->getParamNames().at(paramIndex);
+        if(firstVarInit.getSnippet()->getCode().find("$(" + paramName + ")") == std::string::npos) {
+            return false;
+        }
+        // Otherwise, return whether values across all groups are heterogeneous
+        else {
+            // Loop through groups within merged group
+            const double firstValue = firstVarInit.getParams().at(paramIndex);
+            for(size_t i = 0; i < sortedGroupChildren.size(); i++) {
+                const auto &varInit = (sortedGroupChildren[i][childIndex]->*getVarInitialisersFn)().at(varIndex);
+                if(varInit.getParams().at(paramIndex) != firstValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    template<typename T, typename G>
+    bool isChildVarInitDerivedParamHeterogeneous(size_t childIndex, size_t varIndex, size_t paramIndex,
+                                                 const std::vector<std::vector<T>> &sortedGroupChildren,
+                                                 G getVarInitialisersFn) const
+    {
+        // If parameter isn't referenced in code, there's no point implementing it hetereogeneously!
+        const auto &firstVarInit = (sortedGroupChildren[0][childIndex]->*getVarInitialisersFn)().at(varIndex);
+        const std::string derivedParamName = firstVarInit.getSnippet()->getDerivedParams().at(paramIndex).name;
+        if(firstVarInit.getSnippet()->getCode().find("$(" + derivedParamName + ")") == std::string::npos) {
+            return false;
+        }
+        // Otherwise, return whether values across all groups are heterogeneous
+        else {
+            // Loop through groups within merged group
+            const double firstValue = firstVarInit.getDerivedParams().at(paramIndex);
+            for(size_t i = 0; i < sortedGroupChildren.size(); i++) {
+                const auto &varInit = (sortedGroupChildren[i][childIndex]->*getVarInitialisersFn)().at(varIndex);
+                if(varInit.getDerivedParams().at(paramIndex) != firstValue) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     //------------------------------------------------------------------------

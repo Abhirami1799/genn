@@ -136,8 +136,17 @@ void genMergedNeuronStruct(const CodeGenerator::BackendBase &backend, CodeGenera
     const NeuronModels::Base *nm = m.getArchetype().getNeuronModel();
     gen.addVars(nm->getVars(), backend.getArrayPrefix());
 
-    // Extra global parameters are not required for init
-    if(!init) {
+    // If we're initialising
+    if(init) {
+        // Add heterogeneous neuron var init params
+        gen.addHeterogeneousVarInitParams(nm->getVars(), &NeuronGroupInternal::getVarInitialisers,
+                                          &CodeGenerator::NeuronGroupMerged::isVarInitParamHeterogeneous);
+        gen.addHeterogeneousVarInitDerivedParams(nm->getVars(), &NeuronGroupInternal::getVarInitialisers,
+                                                 &CodeGenerator::NeuronGroupMerged::isVarInitDerivedParamHeterogeneous);
+    }
+    // Otherwise
+    else {
+        // Add EGPs
         gen.addEGPs(nm->getExtraGlobalParams());
 
         // Add heterogeneous neuron model parameters
@@ -189,27 +198,31 @@ void genMergedNeuronStruct(const CodeGenerator::BackendBase &backend, CodeGenera
     for(size_t i = 0; i < m.getArchetype().getCurrentSources().size(); i++) {
         const auto *cs = m.getArchetype().getCurrentSources()[i];
 
-        const auto paramNames = cs->getCurrentSourceModel()->getParamNames();
-        for(size_t p = 0; p < paramNames.size(); p++) {
-            if(m.isCurrentSourceParamHeterogeneous(i, p)) {
-                gen.addField("scalar", paramNames[p] + "CS" + std::to_string(i),
-                             [i, p, &m](const NeuronGroupInternal &, size_t groupIndex)
-                             {
-                                 const double val = m.getSortedCurrentSources().at(groupIndex).at(i)->getParams().at(p);
-                                 return CodeGenerator::writePreciseString(val);
-                             });
-            }
+        if(init) {
         }
+        else {
+            const auto paramNames = cs->getCurrentSourceModel()->getParamNames();
+            for(size_t p = 0; p < paramNames.size(); p++) {
+                if(m.isCurrentSourceParamHeterogeneous(i, p)) {
+                    gen.addField("scalar", paramNames[p] + "CS" + std::to_string(i),
+                                 [i, p, &m](const NeuronGroupInternal &, size_t groupIndex)
+                                 {
+                                     const double val = m.getSortedCurrentSources().at(groupIndex).at(i)->getParams().at(p);
+                                     return CodeGenerator::writePreciseString(val);
+                                 });
+                }
+            }
 
-        const auto derivedParams = cs->getCurrentSourceModel()->getDerivedParams();
-        for(size_t p = 0; p < derivedParams.size(); p++) {
-            if(m.isCurrentSourceDerivedParamHeterogeneous(i, p)) {
-                gen.addField("scalar", derivedParams[p].name + "CS" + std::to_string(i),
-                             [i, p, &m](const NeuronGroupInternal&, size_t groupIndex)
-                             {
-                                 const double val = m.getSortedCurrentSources().at(groupIndex).at(i)->getDerivedParams().at(p);
-                                 return CodeGenerator::writePreciseString(val);
-                             });
+            const auto derivedParams = cs->getCurrentSourceModel()->getDerivedParams();
+            for(size_t p = 0; p < derivedParams.size(); p++) {
+                if(m.isCurrentSourceDerivedParamHeterogeneous(i, p)) {
+                    gen.addField("scalar", derivedParams[p].name + "CS" + std::to_string(i),
+                                 [i, p, &m](const NeuronGroupInternal &, size_t groupIndex)
+                                 {
+                                     const double val = m.getSortedCurrentSources().at(groupIndex).at(i)->getDerivedParams().at(p);
+                                     return CodeGenerator::writePreciseString(val);
+                                 });
+                }
             }
         }
 
